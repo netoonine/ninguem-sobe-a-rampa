@@ -1,0 +1,286 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sons da Rampa</title>
+<style>
+  :root {
+    --bg: #f4efe4; --card: #fbf8f1; --card2: #fffdf8; --line: #b9ab90; --ink: #2f2a22; --soft: #6f6553; --title: #1f4d2e;
+    --verde: #2f9a4a; --verdeE: #1d6431; --laranja: #e07a2a; --vermelho: #d8433b; --azul: #2f6f9a; --warn: #b8382f;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.4 "Avenir Next", "Avenir", "Trebuchet MS", sans-serif; }
+  header { padding: 22px 20px 10px; max-width: 1200px; margin: 0 auto; }
+  h1 { font: 700 34px/1.1 "Rockwell", "Georgia", serif; color: var(--title); margin: 0 0 4px; }
+  header p { margin: 0; color: var(--soft); }
+  main { max-width: 1200px; margin: 0 auto; padding: 0 20px 40px; }
+  .bar { position: sticky; top: 0; z-index: 5; background: var(--bg); padding: 10px 0; display: flex; flex-wrap: wrap; gap: 10px 18px; align-items: center; border-bottom: 1px solid var(--line); }
+  .bar label { display: flex; align-items: center; gap: 6px; font-weight: 700; font-size: 13px; }
+  .bar input[type=range] { width: 130px; accent-color: var(--verde); }
+  .bar .hint { color: var(--soft); font-size: 12px; }
+  button { font: inherit; cursor: pointer; border-radius: 10px; border: 1.5px solid var(--line); background: var(--card2); color: var(--ink); }
+  button:hover { background: #fff; }
+  button:active { transform: translateY(1px); }
+  .act { padding: 7px 14px; font-weight: 700; }
+  .act.main { background: var(--verde); border-color: var(--verdeE); color: #fff; }
+  section { margin-top: 22px; }
+  h2 { font: 700 21px/1.2 "Rockwell", "Georgia", serif; color: var(--title); margin: 0 0 4px; display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; }
+  h2 small { font: 600 12px "Avenir Next", sans-serif; color: var(--soft); }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 8px; }
+  .fx { text-align: left; padding: 9px 12px; background: var(--card); min-height: 58px; }
+  .fx b { display: block; font-size: 14px; }
+  .fx code { font-size: 11px; color: var(--soft); }
+  .fx .m { display: block; font-size: 11px; color: var(--azul); margin-top: 2px; min-height: 14px; }
+  .fx .m.bad { color: var(--warn); font-weight: 700; }
+  .fx.on { background: #eaf6ec; border-color: var(--verde); }
+  .amb { background: var(--card); border: 1.5px solid var(--line); border-radius: 14px; padding: 12px 14px; }
+  .amb .row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 6px 0; }
+  .amb .th.on, .trk.on { background: var(--verde); color: #fff; border-color: var(--verdeE); }
+  .amb .th { padding: 6px 12px; }
+  .note { color: var(--soft); font-size: 12px; margin: 4px 0 0; }
+  @media (max-width: 520px) { .grid { grid-template-columns: 1fr 1fr; } h1 { font-size: 28px; } }
+</style>
+</head>
+<body>
+<header>
+  <h1>Sons da Rampa</h1>
+  <p>Galeria dos sons de Ninguém Sobe a Rampa, todos sintetizados em Web Audio (<code>js/audio.js</code>). Clique para ouvir no volume usado no jogo.</p>
+</header>
+<main>
+  <div class="bar">
+    <label>Volume <input id="vol" type="range" min="0" max="1.5" step="0.05" value="1"></label>
+    <label>Posição (pan) <input id="pan" type="range" min="0" max="1280" step="10" value="640"></label>
+    <label><input id="usePan" type="checkbox"> usar posição</label>
+    <label><input id="rep" type="checkbox"> repetir 5x (ouvir a variação)</label>
+    <button class="act main" id="medir">Medir tudo</button>
+    <span class="hint" id="status">medição: pico e loudness (LUFS-M, janela de 400 ms) na entrada do compressor</span>
+  </div>
+
+  <section>
+    <h2>Música <small>em loop; dá para tocar os efeitos por cima</small></h2>
+    <div class="row" style="display:flex;gap:8px;flex-wrap:wrap">
+      <button class="act trk" data-track="calm">Calma: bossa (título e mapa)</button>
+      <button class="act trk" data-track="battle">Batalha: samba leve</button>
+      <button class="act trk" data-track="boss">Chefe: plantão dramático</button>
+      <button class="act trk" data-track="">Parar música</button>
+    </div>
+  </section>
+
+  <section>
+    <h2>Ambiente das fases <small>camas contínuas + cidade e cerrado sorteados, no volume de efeitos</small></h2>
+    <div class="amb">
+      <div class="row" id="themes"></div>
+      <div class="row">
+        <label><input id="aNight" type="checkbox"> madrugada</label>
+        <label>tempestade de fake news <input id="aStorm" type="range" min="0" max="1" step="0.05" value="0"></label>
+        <label><input id="aHeart" type="checkbox"> candidato rival na pista (batida)</label>
+        <button class="act" id="aStop">Parar ambiente</button>
+      </div>
+      <p class="note">Ligar e desligar a madrugada toca a transição (madrugada chegando / dia voltando), como no jogo.</p>
+    </div>
+  </section>
+
+  <div id="groups"></div>
+</main>
+
+<script src="../js/audio.js"></script>
+<script>
+'use strict';
+// volume de cada efeito no jogo (chamada mais comum em game.js); o resto toca em 1
+const VOL = {
+  hammer: 0.45, coin: 0.8, bossDie: 0.7, bigDie: 0.7, die: 0.7, splat: 0.7, freeze: 0.6, thud: 0.6, boom: 0.8, boomBig: 0.8,
+  unitDie: 0.6, sword: 0.5, palm: 0.7, heal: 0.5, slam: 0.7, enemyHit: 0.4, arrow: 0.45, throw: 0.6, dart: 0.5, zap: 0.6,
+  orbBig: 0.8, magic: 0.55, launch: 0.65, beam: 0.3, splash: 0.7, jet: 0.6, water: 0.5, sand: 0.6, gust: 0.6, mark: 0.6,
+  merc: 0.7, clang: 0.4, arcaneBig: 0.6, arcane: 0.5, wind: 0.8, chime: 0.7, bossFreed: 0.8, herb: 0.5, herbHit: 0.4,
+  ember: 0.5, fireTrail: 0.7, herbHeal: 0.8, mapStep: 0.5,
+};
+const GROUPS = [
+  ['Torres', 'tiros, impactos e obra', [
+    ['arrow', 'Mensalinho: envelope'], ['dart', 'Dólar na Cueca: elástico'], ['ballista', 'Mensalão: mala'],
+    ['magic', 'Joias: brilho'], ['orbBig', 'Joias: joia grande'], ['arcane', 'Joia acerta'], ['arcaneBig', 'Joia grande acerta'],
+    ['zap', 'Corrente de Ouro'], ['beam', 'Relógio de Ouro: tique-taque'], ['flash', 'Clarão de Diamante (flash)'],
+    ['launch', 'Petrolão: barril sai'], ['boom', 'Barril cai'], ['boomBig', 'Barril grande'], ['fire', 'Óleo em Chamas'],
+    ['slam', 'Sonda do Pré-Sal'], ['rumble', 'Tremor de Sonda'],
+    ['water', 'Lava a Jato: jato'], ['splash', 'Água caindo'], ['jet', 'Força-Tarefa: jato forte'], ['geyser', 'Vaza Jato'], ['freeze', 'Água Gelada'],
+    ['gust', 'Central do Zap: rajada'], ['sand', 'Corrente do Zap'], ['tornado', 'Disparo em Massa'],
+    ['drums', 'Palanque da CPI'], ['mark', 'Convocação (Quebra de Sigilo)'], ['merc', 'Centrão de Aluguel'], ['coin', 'Banco Vorcash: verba'],
+    ['rally', 'Rachadinha: apito de reunião'], ['palm', 'Pancada de Pasta'],
+    ['hammer', 'Obra: martelo'], ['build', 'Obra começa'], ['built', 'Torre pronta (bip da urna)'], ['ability', 'Habilidade comprada'],
+    ['rubble', 'Obra parada liberada'], ['gate', 'Manobra regimental (alavanca)'],
+  ]],
+  ['Heróis e assessores', 'Lulalá, Janjinha, Zero-Um, Capitão Mito e a tropa', [
+    ['sword', 'Golpe'], ['whirl', 'Lulalá: Discurso de Palanque'], ['hawk', 'Lulalá: Faz o L'], ['claw', 'O L acerta'],
+    ['beastCall', 'Janjinha: Comitiva'], ['trail', 'Janjinha: Stories'],
+    ['herb', 'Zero-Um: Projeto de Lei'], ['herbHit', 'Projeto acerta'], ['bless', 'Zero-Um: Cassação'], ['herbHeal', 'Fundo Partidário / Atestado Médico'],
+    ['flare', 'Capitão Mito: Imbrochável!'], ['fireTrail', 'Capitão Mito: Motociata'], ['ember', 'Ferro de Solda'],
+    ['heroMove', 'Herói recebe ordem'], ['levelup', 'Herói sobe de nível'], ['heroDie', 'Herói cai'], ['heroBack', 'Herói volta'],
+    ['unitDie', 'Assessor cai'], ['clang', 'Golpe no escudo'],
+  ]],
+  ['Adversários', 'quem cai vira delator; o candidato rival e seus recursos', [
+    ['die', 'Vira delator (larga a bandeira)'], ['bigDie', 'Delator grande'], ['bossDie', 'Chefe cai / entra com recurso'], ['bossFreed', 'Chefe derrotado'],
+    ['enemyHit', 'Adversário golpeia'], ['leak', 'Subiu a rampa (perdeu voto)'], ['heal', 'Coro de cura (Michele Unção, Dr. Chuchu)'], ['warcry', 'Chama reforços no megafone'],
+    ['throw', 'Arremesso'], ['sabotage', 'Tinta azul e rosa / greve'], ['firestorm', 'Fundão Eleitoral'], ['splat', 'Busão / notebook solta a turma'],
+    ['thud', 'Voador derrubado'],
+  ]],
+  ['Eventos', 'ondas, operações, Delação, tempestade de fake news, madrugada e o candidato', [
+    ['horn', 'Onda: chamada dos metais'], ['hornBig', 'Última onda'], ['thunder', 'Operação da PF (sirene e freada)'], ['riders', 'Bancada de Apoio'],
+    ['stampede', 'Delação Premiada'], ['charmReady', 'Delação pronta'],
+    ['windWarn', 'Aviso de tempestade'], ['stormStart', 'Tempestade de fake news'], ['wind', 'Rajada (santinhos voando)'], ['stormEnd', 'Tempestade passa'],
+    ['thunderFar', 'Trovão longe'], ['floodWarn', 'Cheia: aviso (sobra do motor)'], ['flood', 'Cheia (sobra do motor)'], ['floodEnd', 'Cheia passa (sobra do motor)'],
+    ['nightFall', 'Madrugada chegando'], ['dawn', 'Dia voltando'],
+    ['bossCome', 'Chefe chegou (acorde dramático)'], ['heartBeat', 'Candidato na pista (batida)'], ['heartSmoke', 'Entrou com recurso!'], ['heartBack', 'Volta do recurso'],
+    ['heartFreed', 'Recurso negado! (festa)'], ['victory', 'Vitória (fanfarra de comício)'], ['defeat', 'Derrota (buzina triste)'],
+  ]],
+  ['Interface', 'papel timbrado, teclas da urna, mapa e modos', [
+    ['click', 'Clique (tecla)'], ['hover', 'Passar o mouse'], ['error', 'Não pode (CORRIGE)'], ['open', 'Abrir painel (papel)'], ['chime', 'Aviso novo'],
+    ['stars', 'Estrela (carimbo)'], ['upgrade', 'Melhoria'], ['sell', 'Vender (cha-ching)'],
+    ['titleIn', 'Logo entrando'], ['heroPick', 'Herói em vista'], ['heroGo', 'Levar à batalha'], ['talent', 'Talento'], ['heroNew', 'Herói novo'],
+    ['trailOpen', 'Caminho novo no mapa'], ['mapStep', 'Passo no mapa'], ['flagDrop', 'Bandeira cai'],
+    ['mode_normal', 'Modo Campanha'], ['mode_chal', 'Modo Desafio'], ['mode_heroic', 'Modo Heroico'], ['mode_iron', 'Modo Ferro'], ['mode_endless', 'Recontagem'],
+  ]],
+  ['Cidade e cerrado', 'tocam sorteados dentro do ambiente; aqui, soltos', [
+    ['cicada', 'Cigarra do cerrado'], ['birdChirp', 'Passarinho'], ['bemtevi', 'Bem-te-vi'], ['cricket', 'Grilo'],
+    ['pombo', 'Pombo'], ['revoada', 'Revoada de pombos'], ['carro', 'Carro passando'], ['buzinaLonge', 'Buzina ao longe'], ['onibus', 'Ônibus (freio a ar)'],
+    ['burburinho', 'Burburinho'], ['torcidaLonge', 'Multidão ao longe'], ['apitoLonge', 'Apito ao longe'], ['megafoneLonge', 'Carro de som ao longe'],
+    ['bandeira', 'Bandeirão no vento'], ['notif', 'Notificação de celular'], ['celular', 'Celular vibrando'],
+  ]],
+];
+const THEMES = [['oasis', 'Eixo Monumental'], ['canyon', 'Esplanada dos Ministérios'], ['dunes', 'Congresso Nacional'],
+  ['storm', 'Praça dos Três Poderes'], ['tepui', 'Rampa do Planalto']];
+
+const $ = id => document.getElementById(id);
+const ui = { vol: $('vol'), pan: $('pan'), usePan: $('usePan'), rep: $('rep') };
+const btns = {};
+
+// efeitos que existem no audio.js mas nao estao em nenhum grupo
+const listed = new Set(GROUPS.flatMap(g => g[2].map(e => e[0])));
+const extra = Object.keys(Snd.fx).filter(n => !listed.has(n));
+if (extra.length) GROUPS.push(['Outros', 'sem grupo ainda', extra.map(n => [n, n])]);
+
+const root = $('groups');
+for (const [title, sub, list] of GROUPS) {
+  const s = document.createElement('section');
+  s.innerHTML = `<h2>${title} <small>${sub}</small> <small class="gsum"></small></h2><div class="grid"></div>`;
+  const grid = s.querySelector('.grid');
+  for (const [name, label] of list) {
+    if (!Snd.fx[name]) continue;
+    const b = document.createElement('button');
+    b.className = 'fx';
+    b.title = 'volume no jogo: ' + (VOL[name] == null ? 1 : VOL[name]);
+    b.innerHTML = `<b>${label}</b><code>${name}</code><span class="m"></span>`;
+    b.onclick = () => tocar(name, b);
+    grid.appendChild(b);
+    btns[name] = b;
+  }
+  s.gsum = s.querySelector('.gsum');
+  s.names = list.map(e => e[0]).filter(n => Snd.fx[n]);
+  root.appendChild(s);
+}
+
+function ligar() {
+  Snd.sfxOn = true;
+  Snd.init();
+  if (Snd.sfxGain) Snd.sfxGain.gain.value = 0.55 * Number(ui.vol.value);
+}
+function tocar(name, b) {
+  ligar();
+  const v = VOL[name] == null ? 1 : VOL[name];
+  const x = ui.usePan.checked ? Number(ui.pan.value) : null;
+  const n = ui.rep.checked ? 5 : 1;
+  for (let i = 0; i < n; i++) setTimeout(() => { Snd.last[name] = 0; Snd.play(name, v, x); }, i * 420);
+  if (b) { b.classList.add('on'); setTimeout(() => b.classList.remove('on'), 300 + n * 420); }
+}
+ui.vol.oninput = () => { if (Snd.sfxGain) Snd.sfxGain.gain.value = 0.55 * Number(ui.vol.value); };
+
+// ---------------------------------------------------------------- ambiente ao vivo
+const st = { theme: null, night: false, storm: 0, heart: false };
+const heartMock = { T: { final: true }, dead: false, hp: 100, maxHp: 100, x: 640 };
+const mock = {
+  get L() { return { theme: st.theme, storm: true }; },
+  isNight: () => st.night, stormK: () => st.storm, flood: 0,
+  state: 'running', get enemies() { return st.heart ? [heartMock] : []; },
+};
+const thRow = $('themes');
+for (const [id, label] of THEMES) {
+  const b = document.createElement('button');
+  b.className = 'th'; b.textContent = label; b.dataset.id = id;
+  b.onclick = () => {
+    ligar();
+    st.theme = id;
+    Snd.startAmb(mock);
+    thRow.querySelectorAll('.th').forEach(o => o.classList.toggle('on', o === b));
+  };
+  thRow.appendChild(b);
+}
+$('aNight').onchange = e => { st.night = e.target.checked; };
+$('aStorm').oninput = e => { st.storm = Number(e.target.value); };
+$('aHeart').onchange = e => { st.heart = e.target.checked; };
+$('aStop').onclick = () => { Snd.stopAmb(); thRow.querySelectorAll('.th').forEach(o => o.classList.remove('on')); };
+document.querySelectorAll('[data-track]').forEach(b => b.onclick = () => {
+  ligar(); Snd.musicOn = true; if (Snd.musicGain) Snd.musicGain.gain.value = 0.32;
+  if (b.dataset.track) Snd.startTrack(b.dataset.track, true); else Snd.stopTrack();
+  document.querySelectorAll('.trk').forEach(o => o.classList.toggle('on', o === b && !!b.dataset.track));
+});
+
+// ---------------------------------------------------------------- medicao offline
+// pico (dBFS) e loudness momentanea maxima (BS.1770, janela de 400 ms) na entrada do compressor
+function kfilter(x) {
+  const s1b = [1.53512485958697, -2.69169618940638, 1.19839281085285], s1a = [1, -1.69065929318241, 0.73248077421585];
+  const s2b = [1, -2, 1], s2a = [1, -1.99004745483398, 0.99007225036621];
+  const bq = (x, b, a) => { const y = new Float32Array(x.length); let x1 = 0, x2 = 0, y1 = 0, y2 = 0; for (let i = 0; i < x.length; i++) { const v = b[0] * x[i] + b[1] * x1 + b[2] * x2 - a[1] * y1 - a[2] * y2; x2 = x1; x1 = x[i]; y2 = y1; y1 = v; y[i] = v; } return y; };
+  return bq(bq(x, s1b, s1a), s2b, s2a);
+}
+function analisar(buf) {
+  const sr = buf.sampleRate, L = buf.getChannelData(0), R = buf.getChannelData(1);
+  let peak = 0, last = 0, nan = false;
+  for (let i = 0; i < L.length; i++) { const a = Math.max(Math.abs(L[i]), Math.abs(R[i])); if (a !== a) { nan = true; continue; } if (a > peak) peak = a; if (a > 0.001) last = i; }
+  const kL = kfilter(L), kR = kfilter(R), win = Math.round(0.4 * sr), hop = Math.round(0.1 * sr);
+  let M = -Infinity;
+  for (let s = 0; s + win <= L.length; s += hop) { let e = 0; for (let i = s; i < s + win; i++) e += kL[i] * kL[i] + kR[i] * kR[i]; M = Math.max(M, -0.691 + 10 * Math.log10(e / win + 1e-20)); }
+  return { peak: 20 * Math.log10(peak + 1e-12), M, dur: last / sr, nan };
+}
+// tudo o que o init() troca; volta ao contexto ao vivo depois da medicao
+const KEYS = ['ctx', 'master', 'sfxGain', 'musicGain', 'mus', 'ambGain', 'noiseBuf', 'pinkBuf', 'crackBuf', 'verb', 'sverbIn', 'last', 'voices', 'allV', 'ksc', 'sirT'];
+async function medirUm(name) {
+  const sr = 48000, off = new OfflineAudioContext(2, sr * 4, sr);
+  Snd.ctx = null;
+  const AC0 = window.AudioContext;
+  window.AudioContext = function () { return off; };
+  try { Snd.init(); } finally { window.AudioContext = AC0; }
+  Snd.master.disconnect(); Snd.master.connect(off.destination);
+  Snd.play(name, VOL[name] == null ? 1 : VOL[name]);
+  return analisar(await off.startRendering());
+}
+$('medir').onclick = async () => {
+  const keep = {}; for (const k of KEYS) keep[k] = Snd[k];
+  const ambG = Snd.ambG, track = Snd.track;
+  Snd.stopAmb(); Snd.stopTrack();
+  const sfxOn = Snd.sfxOn; Snd.sfxOn = true;
+  const res = {};
+  const names = Object.keys(btns);
+  for (let i = 0; i < names.length; i++) {
+    $('status').textContent = `medindo ${i + 1}/${names.length}: ${names[i]}`;
+    res[names[i]] = await medirUm(names[i]);
+  }
+  for (const k of KEYS) Snd[k] = keep[k];
+  Snd.sfxOn = sfxOn;
+  if (Snd.ctx) { if (track) Snd.startTrack(track, true); if (ambG) Snd.startAmb(ambG); }
+  for (const [n, q] of Object.entries(res)) {
+    const el = btns[n].querySelector('.m');
+    const bad = q.nan || q.peak > -1 || q.M < -70;
+    el.textContent = `M ${q.M.toFixed(1)} · pico ${q.peak.toFixed(1)} · ${q.dur.toFixed(2)} s${q.nan ? ' · NaN!' : ''}`;
+    el.classList.toggle('bad', bad);
+  }
+  document.querySelectorAll('#groups section').forEach(s => {
+    const ms = s.names.map(n => res[n] && res[n].M).filter(v => v != null);
+    if (!ms.length) return;
+    const pk = Math.max(...s.names.map(n => res[n].peak));
+    s.gsum.textContent = `· M de ${Math.min(...ms).toFixed(1)} a ${Math.max(...ms).toFixed(1)} (média ${(ms.reduce((a, b) => a + b, 0) / ms.length).toFixed(1)}) · pico máx ${pk.toFixed(1)} dBFS`;
+  });
+  $('status').textContent = 'medição pronta (valores no volume do jogo, antes do compressor)';
+  window.MEDIDAS = res;
+};
+</script>
+</body>
+</html>

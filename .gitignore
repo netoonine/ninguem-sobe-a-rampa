@@ -1,0 +1,12 @@
+# arte de trabalho: modelos 3D (GBs), quadros de render (regeneraveis), conceitos e fotos de referencia
+# (as fotos reais tem licenca propria e nao sao redistribuidas aqui)
+arte/
+
+# dependencias e lixo
+tools/node_modules
+node_modules/
+__pycache__/
+*.pyc
+*.blend1
+.DS_Store
+tools/shots/
