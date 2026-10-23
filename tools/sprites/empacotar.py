@@ -1,6 +1,7 @@
 """Empacota os quadros renderizados no Blender em folhas de sprites para o jogo, uma familia de torre por vez.
 
 uso: python3 tools/sprites/empacotar.py [familias...]      (sem argumentos: todas as pastas de arte/render com meta.json)
+     python3 tools/sprites/empacotar.py --cenario          (so os fundos das fases: ver main_cenario)
 
 Cada familia (arte/render/<familia>/) vira as folhas sprites/<familia>_<k>.png. O jogo so carrega as folhas das
 torres levadas na fase. Tudo vai para js/sprites_meta.js:
@@ -215,8 +216,27 @@ def n_fases():
         return 12
 
 
+# JPG dos fundos (e da luz), na resolucao do render (hoje 6 px por unidade: 7680x4320, para o zoom 2x numa tela
+# Retina): qualidade 85, baixando um ponto por vez (ate CEN_Q_MIN) so se o arquivo passar de CEN_MAX bytes
+CEN_Q, CEN_Q_MIN, CEN_MAX = 85, 80, 2_500_000
+CEN_LOG = {}
+
+
+def save_cen(im, dst, progressive=True):
+    import io
+    for q in range(CEN_Q, CEN_Q_MIN - 1, -1):
+        buf = io.BytesIO()
+        im.save(buf, 'JPEG', quality=q, optimize=True, progressive=progressive)
+        if buf.tell() <= CEN_MAX:
+            break
+    with open(dst, 'wb') as fh:
+        fh.write(buf.getvalue())
+    CEN_LOG[os.path.basename(dst)] = q
+
+
 def pack_cenario(prev=None):
-    """Fundos das fases (arte/render/cenario/f<N>.png, 2x a tela do jogo) viram JPG; a luz (lava, braseiros) vai a parte.
+    """Fundos das fases (arte/render/cenario/f<N>.png, na resolucao do render, hoje 6x a tela do jogo) viram JPG na
+    mesma resolucao; a luz (lava, braseiros, janelas, postes) vai a parte.
     Uma entrada por fase de fases.json. Sem nenhum fundo renderizado ainda, fica o cenario que ja estava no meta."""
     src = os.path.join(RENDER, 'cenario')
     n = n_fases()
@@ -233,7 +253,7 @@ def pack_cenario(prev=None):
         item = {'img': f'sprites/cenario_f{i}.jpg', 'palms': info.get('palms', []), 'env': info.get('env', [])}
         dst = os.path.join(OUT, f'cenario_f{i}.jpg')
         if not os.path.exists(dst) or os.path.getmtime(dst) < os.path.getmtime(png):
-            Image.open(png).convert('RGB').save(dst, quality=87, optimize=True, progressive=True)
+            save_cen(Image.open(png).convert('RGB'), dst)
         glow = os.path.join(src, f'f{i}_glow.png')
         if info.get('glow') and os.path.exists(glow):
             gd = os.path.join(OUT, f'cenario_f{i}_luz.jpg')
@@ -242,14 +262,14 @@ def pack_cenario(prev=None):
                 from PIL import ImageFilter, ImageChops
                 g0 = Image.open(glow).convert('RGB')
                 bl = g0.filter(ImageFilter.GaussianBlur(10 * g0.width / 2560)).point(lambda v: min(255, int(v * 1.8)))  # raio na escala do render
-                ImageChops.lighter(g0, bl).save(gd, quality=85, optimize=True)
+                save_cen(ImageChops.lighter(g0, bl), gd, progressive=False)
             item['luz'] = f'sprites/cenario_f{i}_luz.jpg'
         # cheia da varzea: o mesmo fundo com a agua alta (o jogo mistura pelo g.flood)
         cheia = os.path.join(src, f'f{i}_cheia.png')
         if info.get('cheia') and os.path.exists(cheia):
             cd = os.path.join(OUT, f'cenario_f{i}_cheia.jpg')
             if not os.path.exists(cd) or os.path.getmtime(cd) < os.path.getmtime(cheia):
-                Image.open(cheia).convert('RGB').save(cd, quality=87, optimize=True, progressive=True)
+                save_cen(Image.open(cheia).convert('RGB'), cd)
             item['cheia'] = f'sprites/cenario_f{i}_cheia.jpg'
         if info.get('fenda'):
             item['fenda'] = info['fenda']
@@ -329,7 +349,41 @@ def carried(prev, fam):
             'sets': sets, 'scale': prev['scale']}
 
 
+def main_cenario():
+    """--cenario: refaz so os fundos das fases (sprites/cenario_f<N>.jpg e _luz.jpg, a partir de arte/render/cenario) e
+    troca so o valor da chave "cenario" do js/sprites_meta.js. O resto do arquivo (folhas das torres, conjuntos, mapa,
+    titulo) fica byte a byte como estava: nenhuma folha de torre e reempacotada nem reescrita, e o sprites_meta_r.js
+    (chapa R) nao e tocado."""
+    if SUF:
+        sys.exit('--cenario: os fundos sao da chapa V (rode sem CHAPA=R)')
+    s = open(META_V_JS).read()
+    prev = json.loads(s[s.index('{'):s.rindex('}') + 1])
+    key = '"cenario":'
+    if s.count(key) != 1:
+        sys.exit('--cenario: chave "cenario" ausente ou repetida no ' + META_V_JS)
+    cenario = pack_cenario(prev)
+    i = s.index(key) + len(key)
+    _, j = json.JSONDecoder().raw_decode(s, i)   # fim do valor antigo
+    new = s[:i] + json.dumps(cenario, separators=(',', ':')) + s[j:]
+    if new != s:
+        with open(META_V_JS, 'w') as fh:
+            fh.write(new)
+    rep = {}
+    for c in cenario:
+        if not c:
+            continue
+        for k in ('img', 'luz'):
+            if c.get(k):
+                pth = os.path.join(ROOT, c[k])
+                with Image.open(pth) as im:
+                    q = CEN_LOG.get(os.path.basename(pth))
+                    rep[c[k]] = f'{im.width}x{im.height} {os.path.getsize(pth) / 1e6:.2f} MB' + (f' q{q}' if q else ' (sem mudanca)')
+    print(json.dumps({'cenario': rep, 'meta_alterado': new != s}, ensure_ascii=False, indent=1))
+
+
 def main():
+    if '--cenario' in sys.argv[1:]:
+        return main_cenario()
     fams = sys.argv[1:] or [f for f in ORDER if os.path.exists(os.path.join(RENDER, f, 'meta.json'))]
     prev = prev_meta()
     here = [f for f in ORDER if os.path.exists(os.path.join(RENDER, f, 'meta.json'))]

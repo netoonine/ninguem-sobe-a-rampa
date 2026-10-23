@@ -3,10 +3,23 @@
 
 const UI = {
   regions: [], hot: null, mx: -1, my: -1, cursor: 'default', tip: null,
-  begin() { this.regions = []; this.tip = null; },
+  // cam: retrato da camera (js/camera.js) enquanto a fase registra as regioes do mundo (lotes, torres, inimigos...):
+  // elas guardam a camera do quadro e o clique chega nelas (e no callback) em coordenadas do mundo. null = tela (HUD)
+  cam: null,
+  begin() { this.regions = []; this.tip = null; this.cam = null; },
   add(key, shape, cb, cursor) {
-    this.regions.push({ key, shape, cb, cursor: cursor || 'pointer' });
+    this.regions.push({ key, shape, cb, cursor: cursor || 'pointer', cam: this.cam });
     return this.hot === key;
+  },
+  // ponto da tela (x, y) no espaco da regiao: o mundo para as regioes com camera
+  local(r, x, y) { const k = r.cam; return k ? [k.x + x / k.z, k.y + y / k.z] : [x, y]; },
+  // regiao de cima no ponto da tela (a mesma que o clique pegaria)
+  regionAt(x, y) {
+    for (let i = this.regions.length - 1; i >= 0; i--) {
+      const r = this.regions[i], [lx, ly] = this.local(r, x, y);
+      if (this.hit(r.shape, lx, ly)) return r;
+    }
+    return null;
   },
   rect(key, x, y, w, h, cb, cursor) { return this.add(key, { x, y, w, h }, cb, cursor); },
   circle(key, x, y, r, cb, cursor) { return this.add(key, { cx: x, cy: y, r }, cb, cursor); },
@@ -16,20 +29,17 @@ const UI = {
   },
   end() {
     let hot = null, cur = 'default';
-    for (let i = this.regions.length - 1; i >= 0; i--) {
-      const r = this.regions[i];
-      if (this.hit(r.shape, this.mx, this.my)) { hot = r.key; cur = r.cursor; break; }
-    }
+    const r = this.regionAt(this.mx, this.my);
+    if (r) { hot = r.key; cur = r.cursor; }
     if (hot !== this.hot && hot && cur === 'pointer') Snd.play('hover', 1);
     this.hot = hot;
     this.cursor = cur;
   },
   click(x, y, btn) {
-    for (let i = this.regions.length - 1; i >= 0; i--) {
-      const r = this.regions[i];
-      if (this.hit(r.shape, x, y)) { if (r.cb) r.cb(x, y, btn); return true; }
-    }
-    return false;
+    const r = this.regionAt(x, y);
+    if (!r) return false;
+    if (r.cb) { const [lx, ly] = this.local(r, x, y); r.cb(lx, ly, btn); }
+    return true;
   },
   blocker(key) { this.rect(key || 'blocker', 0, 0, W, H, () => {}, 'default'); },
   setTip(x, y, title, lines, o) { this.tip = Object.assign({ x, y, title, lines }, o || {}); },
@@ -75,9 +85,14 @@ const UKB = {
 };
 const UKB_GLYPH = { hp: '#ec8a76', lives: '#ec8a76', gold: '#e9b84a', star: '#e9b84a', time: '#8a98d8', armor: '#9aa3ad', mres: '#ad94de', speed: '#62bfb2', flying: '#78b0e6', eye: '#bfa6e8', heal: '#79c37c', fire: '#ef8a5a', soldier: '#c99a72', range: '#62bfb2', dmg: '#ec8a76' };
 
+// icone do chip de cada poder dos escandalos
+const ENEMY_PW_ICON = { petrolao: 'speed', mensalao: 'stun', pedalada: 'speed', fuga: 'speed', leao: 'armor', rouanet: 'heal',
+  rachadinha: 'gold', joias: 'armor', pix: 'heal', tarifaco: 'time', odio: 'soldier', menino: 'stun', secreto: 'eye', vorcash: 'heal' };
 // traços do inimigo em chips (avisos e bestiario)
 function enemyChips(E) {
   const out = [];
+  // poder do escandalo da chapa rival (DATA.setRival) vem primeiro
+  if (E.poder && E.pwName) out.push([E.pwName, ENEMY_PW_ICON[E.poder] || 'gold', '#e98a5a']);
   if (E.boss) out.push(['Chefe', 'star', '#e9b84a']);
   if (E.flying) out.push(['Voa', 'flying', '#78b0e6']);
   if (E.stealth) out.push(['Invisível', 'eye', '#ad94de']);
@@ -388,10 +403,15 @@ const Level = {
     lv.selT = (lv.selT || 0) + dt;
     if (!lv.paused) lv.pauseT = 0;
     this._dt = dt;
-    if (!busy) UI.rect('world', 0, 0, W, H, (x, y, b) => this.worldClick(x, y, b), lv.mode ? 'crosshair' : 'default');
+    // camera (js/camera.js): zoom livre e close-ups. As regioes do mundo daqui ate o Render.level guardam a camera do
+    // quadro (UI.cam): o clique chega nelas em coordenadas do mundo. Menus, botoes de onda e HUD ficam na tela
+    Cam.frame(dt, g, lv);
+    UI.cam = Cam.snap;
+    if (!busy) UI.rect('world', 0, 0, W, H, (x, y, b) => this.worldClick(x, y, b), lv.mode ? 'crosshair' : Cam.zoomed() ? 'grab' : 'default');
+    const [wmx, wmy] = Cam.toWorld(UI.mx, UI.my);   // mouse no mundo (mira das operacoes e ponto de encontro)
 
     // vista
-    const view = { sel: lv.sel, hoverSpot: null, range: null, heroSel: lv.mode === 'hero', selEnemy: lv.sel && lv.sel.enemy, hoverLever: -1 };
+    const view = { sel: lv.sel, hoverSpot: null, range: null, heroSel: lv.mode === 'hero', selEnemy: lv.sel && lv.sel.enemy, hoverLever: -1, cam: Cam };
     const sel = lv.sel;
     if (sel && sel.tower && !lv.mode && sel.tower.type !== 'market') {
       const t = sel.tower;
@@ -401,11 +421,11 @@ const Level = {
     if (lv.mode === 'rally' && sel && sel.tower) {
       const t = sel.tower;
       view.range = { x: t.x, y: t.y, r: t.S.range, color: '#7fffd4' };
-      view.rallyPreview = { x: UI.mx, y: UI.my, ok: g.canRally(t, UI.mx, UI.my) };
+      view.rallyPreview = { x: wmx, y: wmy, ok: g.canRally(t, wmx, wmy) };
     }
     if (lv.mode === 'spell') {
       const r = lv.spell === 'fury' ? DATA.SPELLS.fury.radius + 20 : 45;
-      view.range = { x: UI.mx, y: UI.my, r, color: lv.spell === 'fury' ? '#9fd8ff' : lv.spell === 'stampede' ? '#b6ec4a' : '#ffd27a' };
+      view.range = { x: wmx, y: wmy, r, color: lv.spell === 'fury' ? '#9fd8ff' : lv.spell === 'stampede' ? '#b6ec4a' : '#ffd27a' };
     }
     if (lv.preview) view.range = lv.preview;
     lv.preview = null;
@@ -418,24 +438,28 @@ const Level = {
           if (UI.rect('tw' + t.id, t.x - 38, t.y - 92, 76, 108, () => this.selectTower(t))) view.hoverTower = t;
         } else if (UI.rect('sp' + s.i, s.x - 40, s.y - 26, 80, 50, () => this.selectSpot(s))) view.hoverSpot = s;
       }
+      // bonecos maiores na fase (CHAR_SCALE, js/inimigos.js): a area de clique cresce junto; a altura do voo nao
+      const CK = charK();
       for (const e of g.enemies) {
         if (!g.targetable(e) || (e.T.stealth && !e.revealed)) continue;
-        const hy = e.flying ? FLY_H : e.T.size;
-        UI.rect('en' + e.id, e.x - e.T.size - 4, e.y - hy - e.T.size - 6, e.T.size * 2 + 8, e.T.size + hy + 10, () => { lv.sel = { enemy: e }; Snd.play('click'); });
+        const sz = e.T.size * CK, hy = e.flying ? FLY_H : sz;
+        UI.rect('en' + e.id, e.x - sz - 4, e.y - hy - sz - 6, sz * 2 + 8, sz + hy + 10, () => { lv.sel = { enemy: e }; Snd.play('click'); });
       }
       const h = g.hero;
-      if (!h.dead && !h.disabled) UI.rect('hero', h.x - 14, h.y - 40, 28, 44, () => this.toggleHero());
+      if (!h.dead && !h.disabled) UI.rect('hero', h.x - 14 * CK, h.y - 40 * CK, 28 * CK, 44 * CK, () => this.toggleHero());
       g.forks.forEach((f, i) => {
         if (UI.circle('lever' + i, f.x, f.y - 18, 24, () => this.toggleFork(i))) {
           view.hoverLever = i;
           const open = this.branchName(g, f, f.state), other = this.branchName(g, f, 1 - f.state);
-          UI.setTip(f.x, f.y, 'Manobra regimental', null, { card: true, icon: 'prio_first', tag: 'Manobra', desc: `A turma adversária segue pelo caminho ${open}.`, footer: `Clique (ou G) para desviar pelo ${other}` });
+          UI.setTip(...Cam.toScreen(f.x, f.y), 'Manobra regimental', null, { card: true, icon: 'prio_first', tag: 'Manobra', desc: `A turma adversária segue pelo caminho ${open}.`, footer: `Clique (ou G) para desviar pelo ${other}` });
         }
       });
     }
+    UI.cam = null;   // daqui em diante: tela
 
     Render.ensureBg(g, App.scale);
     Render.level(c, g, view);
+    Cam.overlay(c);   // vinheta e nome do personagem no close-up
 
     this.notices(c, dt);
     if (!busy) {
@@ -519,9 +543,9 @@ const Level = {
   tutorial(c, dt) {
     const g = App.game, lv = App.lv, T = lv.tut;
     if (g.state === 'prewave' && !g.towers.length) {
-      const s = g.spots[3];
-      if (!(lv.sel && lv.sel.spot === s)) this.bubble(c, s.x, s.y - 14, 'Clique neste terreno para construir sua primeira torre.', 'down');
-      else this.bubble(c, s.x, s.y + 60, 'Escolha uma torre. Passe o mouse para ver o que cada uma faz.', 'up');
+      const s = g.spots[3], [sx, sy] = Cam.toScreen(s.x, s.y);
+      if (!(lv.sel && lv.sel.spot === s)) this.bubble(c, sx, sy - 14 * Cam.z, 'Clique neste terreno para construir sua primeira torre.', 'down');
+      else this.bubble(c, sx, sy + 60, 'Escolha uma torre. Passe o mouse para ver o que cada uma faz.', 'up');
       return;
     }
     if (g.state === 'prewave') return;
@@ -538,13 +562,13 @@ const Level = {
     }
     if (!T.up && g.wave >= 3) {
       const t = g.towers.find(tw => tw.tier < 3 && !tw.working && g.upgradeCost(tw) <= g.gold);
-      if (t && T.t < 10) this.bubble(c, t.x, t.y - 66, 'Você tem verba para evoluir esta torre. Clique nela!', 'down');
+      if (t && T.t < 10) this.bubble(c, ...Cam.toScreen(t.x, t.y - 66), 'Você tem verba para evoluir esta torre. Clique nela!', 'down');
       else if (T.t >= 10 || (lv.sel && lv.sel.tower)) { T.up = true; T.t = 0; }
       return;
     }
     if (!T.prio && g.wave >= 4) {
       const t = g.towers.find(tw => g.prioOptions(tw).length);
-      if (t && T.t < 9) this.bubble(c, t.x, t.y - 66, 'Dica: no menu da torre, o botão da direita escolhe o alvo (primeiro, último, mais forte ou voadores).', 'down');
+      if (t && T.t < 9) this.bubble(c, ...Cam.toScreen(t.x, t.y - 66), 'Dica: no menu da torre, o botão da direita escolhe o alvo (primeiro, último, mais forte ou voadores).', 'down');
       else { T.prio = true; T.t = 0; }
     }
   },
@@ -623,7 +647,7 @@ const Level = {
 
   buildMenu(c, s) {
     const g = App.game, lv = App.lv;
-    const [cx, cy] = this.menuCenter(s.x, s.y);
+    const [cx, cy] = this.menuCenter(...Cam.toScreen(s.x, s.y));   // o anel fica na tela, sobre o lote
     if (s.ruin) return this.ruinMenu(c, s, cx, cy);
     const types = g.loadout;
     const R = this.ringR('build', types.length);
@@ -673,7 +697,7 @@ const Level = {
 
   towerMenu(c, t) {
     const g = App.game, lv = App.lv;
-    const [cx, cy] = this.menuCenter(t.x, t.y - 4);
+    const [cx, cy] = this.menuCenter(...Cam.toScreen(t.x, t.y - 4));
     const R = this.ringR('tower');
     this.ringBack(c, cx, cy, R);
     const D = DATA.TOWERS[t.type];
@@ -794,10 +818,11 @@ const Level = {
     if (!g.canCallWave()) return;
     const pulse = 1 + Math.sin(App.time * 5) * 0.06;
     this.waveGroups(g).forEach((G, gi) => {
-      const { x, y } = G;
+      // o botao fica na tela sobre a entrada (com zoom, preso na borda quando a entrada sai da vista)
+      const [x, y] = Cam.toScreen(G.x, G.y, null, 34);
       const hov = UI.circle('wave' + gi, x, y, 26, () => {
         const b = g.callWave();
-        if (b) g.text(x, y - 34, '+' + b, '#ffd54a', 20);
+        if (b) g.text(G.x, G.y - 34, '+' + b, '#ffd54a', 20);
         App.lv.sel = null;
       });
       c.save();
@@ -882,6 +907,7 @@ const Level = {
       c.restore();
       const cy = by + 145 * k;                       // meio dos encaixes (fonte 73..217)
       const sx = [139, 425, 712].map(v => bx + v * k);  // inicio de cada encaixe
+      lv.goldAt = [sx[1] + 17, cy];                    // de onde a Rachadinha tira as notas (js/satira.js)
       if (lv.lifeHit > 0) A.glow(c, sx[0] + 18, cy, 26, '#ff8a8a', 0.5 * lv.lifeHit);
       A.heart(c, sx[0] + 18 + shake, cy, 12 * (1 + 0.15 * lv.lifeHit));
       A.text(c, String(g.lives), sx[0] + 36, cy + 1, 22, lv.lifeHit > 0 ? '#ffc4c4' : '#fff', 'left');
@@ -893,6 +919,7 @@ const Level = {
       fy = 86;
     } else {
       A.darkPanel(c, 10, 8, 372, 54, 14);
+      lv.goldAt = [116, 35];
       if (lv.lifeHit > 0) A.glow(c, 36, 35, 26, '#ff8a8a', 0.5 * lv.lifeHit);
       A.heart(c, 36 + shake, 35, 12 * (1 + 0.15 * lv.lifeHit));
       A.text(c, String(g.lives), 56, 36, 22, lv.lifeHit > 0 ? '#ffc4c4' : '#fff', 'left');
@@ -1126,7 +1153,8 @@ const Level = {
     btn('resume', 'Continuar', y + 96, 'green', () => { lv.paused = false; Snd.play('click'); });
     btn('restart', 'Recomeçar', y + 160, 'gold', () => { const g = App.game; App.endLevel(false); App.startLevel(g.levelIdx, g.mode, g.loadout); });
     btn('quit', 'Sair para o mapa', y + 224, 'red', () => { App.endLevel(false); App.go('map'); });
-    soundToggles(c, W / 2 - 50, y + 306);
+    soundToggles(c, W / 2 - 100, y + 306);
+    cineToggle(c, W / 2 + 100, y + 306);
     // atalhos do teclado em teclas
     A.line(c, x + 30, y + 344, x + w - 30, y + 344, 'rgba(120,80,40,0.16)', 1.5);
     A.text(c, 'Atalhos', x + 34, y + 368, 16, SOFT.ink, 'left', { family: FONT_UI, weight: 900 }, false);
@@ -1254,6 +1282,20 @@ function soundToggles(c, x, y) {
   hv = UI.circle('sfx', x + 100, y, 22, () => { App.setSfx(!Snd.sfxOn); });
   A.roundBtn(c, x + 100, y, 21, { hover: hv, color: '#c99a72' });
   A.icon(c, 'sfx', x + 100, y, 18, { off: !Snd.sfxOn });
+}
+
+// close-ups da camera (js/camera.js) ligados ou nao: lupa, riscada quando desligados (fica no save)
+function cineToggle(c, x, y) {
+  const on = Save.data.cine !== false;
+  const hv = UI.circle('cine', x, y, 22, () => { App.setCine(!on); });
+  A.roundBtn(c, x, y, 21, { hover: hv, color: '#c99a72' });
+  const r = 18;
+  A.line(c, x + r * 0.12, y + r * 0.12, x + r * 0.5, y + r * 0.5, OUT, 6);
+  A.line(c, x + r * 0.12, y + r * 0.12, x + r * 0.5, y + r * 0.5, '#fff', 3.2);
+  A.circ(c, x - r * 0.14, y - r * 0.14, r * 0.38, 'rgba(255,255,255,0.28)', OUT, 4.5);
+  A.circ(c, x - r * 0.14, y - r * 0.14, r * 0.38, null, '#fff', 2.2);
+  if (!on) A.line(c, x - r * 0.6, y - r * 0.6, x + r * 0.6, y + r * 0.6, '#e04848', 3.5);
+  if (hv) A.text(c, on ? 'Close-ups ligados' : 'Close-ups desligados', x, y + 29, 12, SOFT.inkSoft, 'center', null, false);
 }
 
 function drawTip(c, tip) {

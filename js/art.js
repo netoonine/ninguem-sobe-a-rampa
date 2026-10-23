@@ -634,7 +634,8 @@ A.drawEnemy = (c, e, t) => {
   const spr = A.enemySprite && ESPR.ready(e.type) && !e.burrowed;
   if (spr) {
     if (hidden) c.globalAlpha = 0.22 + Math.sin(t * 7 + e.id) * 0.06;
-    if (e.flying) A.shadow(c, 0, 2, T.size * 0.9, T.size * 0.32, 0.18);
+    const K = typeof charK === 'function' ? charK() : 1;   // boneco maior na fase (js/inimigos.js): sombra junto
+    if (e.flying) A.shadow(c, 0, 2, T.size * 0.9 * K, T.size * 0.32 * K, 0.18);
     if (T.flying && !e.flying && e.type !== 'ifrit') c.translate(0, FLY_H - 8);
     if (A.enemySprite(c, e, t, hidden)) { c.restore(); return; }
   }
@@ -706,8 +707,8 @@ A.drawUnit = (c, u, t, selected) => {
   c.save();
   c.translate(u.x, u.y);
   if (selected) {
-    const p = 0.5 + Math.sin(t * 6) * 0.25;
-    A.ell(c, 0, 0, 17, 7, null, `rgba(127,255,212,${p + 0.3})`, 2.4);
+    const p = 0.5 + Math.sin(t * 6) * 0.25, K = typeof charK === 'function' ? charK() : 1;
+    A.ell(c, 0, 0, 17 * K, 7 * K, null, `rgba(127,255,212,${p + 0.3})`, 2.4);
   }
   // bicho liberto chamado pela Caipora: sprite natural da folha do inimigo (js/inimigos.js)
   if (u.kind === 'beast') {

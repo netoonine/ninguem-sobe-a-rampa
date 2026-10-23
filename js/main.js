@@ -8,7 +8,7 @@ const Save = {
     return {
       stars: DATA.LEVELS.map(() => 0), chal: DATA.LEVELS.map(() => false),
       up: { archer: 0, mage: 0, artillery: 0, barracks: 0, eng: 0, cmd: 0, charm: 0, spells: 0 },
-      seen: [], heroXp: 0, music: true, sfx: true, loadout: [], towersSeen: DATA.START_TOWERS.slice(), tips: [],
+      seen: [], heroXp: 0, music: true, sfx: true, cine: true, loadout: [], towersSeen: DATA.START_TOWERS.slice(), tips: [],
       hero: 'jaci', heroXps: {}, talents: {}, heroesSeen: ['jaci', 'benzedeira'], side: null,
       heroic: DATA.LEVELS.map(() => false), iron: DATA.LEVELS.map(() => false), endless: 0,
     };
@@ -102,7 +102,7 @@ const App = {
       this.time += dt;
       if (this.screen === 'level' && this.game && !this.lv.paused) {
         const g = this.game;
-        acc += dt * this.lv.speed;
+        acc += dt * this.lv.speed * Cam.timeK();   // camera lenta (ate 0,5x) durante o close-up
         let n = 0;
         while (acc >= STEP && n < 10) { g.update(STEP); acc -= STEP; n++; }
         if (n >= 10) acc = 0;
@@ -143,8 +143,23 @@ const App = {
       const [x, y] = this.toLogical(ev);
       UI.mx = x; UI.my = y;
       if (ev.button === 2 && this.screen === 'level') { Level.cancel(); return; }
+      // com zoom, apertar no mundo espera soltar: toque vira clique, arrasto anda com a camera (js/camera.js)
+      if (Cam.pointerDown(x, y, ev.button)) return;
       UI.click(x, y, ev.button);
     });
+    window.addEventListener('mousemove', ev => { if (Cam.press) { const [x, y] = this.toLogical(ev); Cam.pointerMove(x, y); } });
+    window.addEventListener('mouseup', ev => { const [x, y] = this.toLogical(ev); Cam.pointerUp(x, y); });
+    // zoom livre: roda do mouse (ou pinca do trackpad) e dois dedos na tela
+    cv.addEventListener('wheel', ev => {
+      if (this.screen !== 'level') return;
+      ev.preventDefault();
+      const [x, y] = this.toLogical(ev);
+      Cam.wheel(x, y, ev.deltaY * (ev.deltaMode === 1 ? 33 : ev.deltaMode === 2 ? 600 : 1), ev.ctrlKey);
+    }, { passive: false });
+    cv.addEventListener('touchstart', ev => Cam.touch(ev, 'start'), { passive: false });
+    cv.addEventListener('touchmove', ev => Cam.touch(ev, 'move'), { passive: false });
+    cv.addEventListener('touchend', ev => Cam.touch(ev, 'end'), { passive: false });
+    cv.addEventListener('touchcancel', ev => Cam.touch(ev, 'end'), { passive: false });
     cv.addEventListener('contextmenu', ev => ev.preventDefault());
     window.addEventListener('keydown', ev => {
       Snd.init();
@@ -169,10 +184,14 @@ const App = {
       else if (k === 't') Level.cyclePrio();
       else if (k === 'g' && g.forks.length) Level.toggleFork(0);
       else if (k === 'n' || k === 'w') { const b = g.callWave(); if (b) g.text(W / 2, 120, '+' + b + ' de verba', '#ffd54a', 22); }
+      else if (k === '0') Cam.resetZoom();   // zoom livre: 0 volta ao mapa inteiro, + e - aproximam e afastam
+      else if (k === '+' || k === '=') Cam.zoomAt(W / 2, H / 2, 1.25);
+      else if (k === '-') Cam.zoomAt(W / 2, H / 2, 0.8);
     });
   },
 
   setMusic(on) { Snd.setMusic(on); Save.data.music = on; Save.write(); },
+  setCine(on) { Save.data.cine = on; Save.write(); if (!on) Cam.stopCine(); Snd.play('click'); },
   setSfx(on) { Snd.setSfx(on); Save.data.sfx = on; Save.write(); if (on) Snd.play('click'); },
 
   go(screen) {
@@ -244,6 +263,7 @@ const App = {
     Save.write();
     this.screen = 'level';
     UI.hot = null;
+    Cam.reset();
     Snd.startTrack('battle', true);
     Snd.play('open');
     Snd.startAmb(this.game);
@@ -262,6 +282,7 @@ const App = {
       else if (ev.kind === 'heartFreed') lv.banner = { t: 0, text: 'Recurso negado!', sub: 'O candidato rival não subiu a rampa', boss: true };
       else if (ev.kind === 'floodEnd') lv.banner = { t: 0, text: 'A água baixou', sub: 'Os lotes baixos voltam a funcionar' };
     }
+    Cam.watch(g, lv);   // close-ups: adversario novo, chefe chegando e habilidade do heroi (js/camera.js)
     const boss = g.enemies.find(e => e.T.boss);
     if (!lv.boss && boss) {
       lv.boss = true;
@@ -323,7 +344,7 @@ const App = {
     else if (this.screen === 'level' && this.game) Level.draw(c, dt);
     UI.end();
     c.restore();
-    this.canvas.style.cursor = UI.cursor;
+    this.canvas.style.cursor = Cam.dragging() ? 'grabbing' : UI.cursor;
   },
 };
 

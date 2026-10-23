@@ -80,7 +80,8 @@ class Enemy {
     this.d = d0 || 0;
     this.lane = T.big ? U.rand(-0.15, 0.15) : U.rand(-0.85, 0.85);
     // bossHp da fase: chefes que vieram de fases mais avancadas do motor herdado
-    this.hp = this.maxHp = Math.round(T.hp * (g.hpMul || 1) * (T.boss && g.L && g.L.bossHp ? g.L.bossHp : 1));
+    // horda menor (DATA.HORDA): cada comum vale por mais de um na vida e na verba; chefes nao mudam
+    this.hp = this.maxHp = Math.round(T.hp * (g.hpMul || 1) * (T.boss && g.L && g.L.bossHp ? g.L.bossHp : 1) * (T.boss ? 1 : 1 / (DATA.HORDA || 1)));
     this.flying = !!T.flying;
     this.x = 0; this.y = 0;
     this.slowF = 1; this.slowT = 0; this.stunT = 0;
@@ -93,6 +94,10 @@ class Enemy {
     this.abT = T.heal ? T.heal.cd * 0.5 : T.summon ? T.summon.cd * 0.6 : T.burrow ? T.burrow.every * U.rand(0.5, 1) : T.wormBurrow ? T.wormBurrow.every : 0;
     this.fsT = T.firestorm ? T.firestorm.cd * 0.5 : 0;
     this.sabT = T.sabotage ? U.rand(1, 2.5) : 0;
+    // poder do escandalo (T.poder/T.pw, da chapa rival; Game.updatePower): relogio proprio, as Joias na metade do
+    // intervalo para nao coincidir com a fuga do chefe
+    this.pwT = T.pw && T.pw.cd ? T.pw.cd * (T.poder === 'joias' ? 0.5 : U.rand(0.3, 0.55)) : 0;
+    this.jewelT = 0; this.oilT = 0;
     this.burrowed = false;
     this.dead = false; this.reached = false;
     this.facing = 1; this.moving = true;
@@ -201,9 +206,12 @@ class Game {
   // ------------------------------------------------------------ utilidades
   sfx(name, vol) { if (!this.headless && !this.mute) this.sounds.push({ name, vol: vol == null ? 1 : vol }); }
   addFx(o) { if (!this.headless) { o.t = 0; this.fx.push(o); } }
-  text(x, y, str, color, size) { if (!this.headless) this.fx.push({ kind: 'text', x, y, str, color: color || '#ffe08a', size: size || 18, t: 0, T: 1.1 }); }
+  // lit: o texto acende a propria luz na fase de noite (poderes dos escandalos, js/vfx.js fxExtra)
+  text(x, y, str, color, size, lit) { if (!this.headless) this.fx.push({ kind: 'text', x, y, str, color: color || '#ffe08a', size: size || 18, t: 0, T: 1.1, lit: !!lit }); }
   later(delay, fn) { this.timers.push({ t: this.time + delay, fn }); }
   hitY(e) { return e.y - (e.flying ? FLY_H : e.T.size * 0.75); }
+  // so para efeitos: altura do acerto no boneco desenhado maior (CHAR_SCALE, js/inimigos.js); o jogo usa o hitY
+  hitYV(e) { return this.hitY(e) - (!this.headless && typeof charLift === 'function' ? charLift(e) : 0); }
   visible(e) { return e.x > -8 && e.x < W + 8 && e.y > -8 && e.y < H + 8; }
   targetable(e) { return !e.dead && !e.reached && !e.untargetable && (!e.burrowed || e.seenBurrow) && this.visible(e); }
   // torres so miram em quem enxergam (espectros precisam ser revelados)
@@ -643,7 +651,11 @@ class Game {
     this.state = 'running';
     this.countdown = -1;
     for (const g of w) {
-      const [type, n, gap, delay = 0, p = 0] = g;
+      const [type, n0, gap0, delay = 0, p = 0] = g;
+      // menos gente por onda (DATA.HORDA), espalhada no mesmo tempo: da para ver cada caricatura
+      const T0 = DATA.ENEMIES[type];
+      const n = T0 && T0.boss ? n0 : Math.max(1, Math.round(n0 * (DATA.HORDA || 1)));
+      const gap = n > 1 ? gap0 * (n0 - 1) / (n - 1) : gap0;
       for (let k = 0; k < n; k++) {
         let pi = p;
         if (p === -1) pi = k % this.paths.length;
@@ -832,7 +844,7 @@ class Game {
           e.d = Math.max(0, e.d - S.push);
           this.stun(e, S.stun);
         }
-        this.addFx({ kind: 'hit', x: e.x, y: this.hitY(e), T: 0.3 });
+        this.addFx({ kind: 'hit', x: e.x, y: this.hitYV(e), T: 0.3 });
       }
       if (h.run >= S.dist || h.d <= 0) h.done = true;
     }
@@ -879,6 +891,7 @@ class Game {
       else if (tag === 'water') a *= 3;
     }
     if (e.markT > 0) a *= 1 + e.markMul;
+    if (e.jewelT > 0) a *= 1 - e.T.pw.cut;   // Joias da Arabia: escudo de joias
     e.hp -= a;
     e.hurtT = 0.12;
     if (src && src.kind === 'hero') this.gainXp(a);
@@ -901,7 +914,7 @@ class Game {
     if (e.dead) return;
     e.dead = true;
     e.hp = 0;
-    let gold = e.blessed ? 0 : e.T.gold * (this.L.goldMul || 1);
+    let gold = e.blessed ? 0 : e.T.gold * (this.L.goldMul || 1) * (e.T.boss ? 1 : 1 / (DATA.HORDA || 1));
     const bounty = this.bountyAt(e.x, e.y);
     if (bounty) gold *= 1 + bounty;
     gold = Math.round(gold);
@@ -943,6 +956,7 @@ class Game {
       this.addFx({ kind: 'dirt', x: e.x, y: e.y, T: 0.6 });
       this.sfx({ n: 'splat', x: e.x }, 0.7);
     }
+    if (e.T.poder) this.powerEvent(e, 'die');
   }
 
   slow(e, f, dur) {
@@ -978,7 +992,7 @@ class Game {
 
   wet(e, dur) {
     e.wetT = Math.max(e.wetT, dur);
-    if (e.burnT > 0) { e.burnT = 0; this.addFx({ kind: 'steam', x: e.x, y: this.hitY(e), T: 0.6 }); }
+    if (e.burnT > 0) { e.burnT = 0; this.addFx({ kind: 'steam', x: e.x, y: this.hitYV(e), T: 0.6 }); }
   }
 
   burn(e, dps, dur) {
@@ -1114,6 +1128,7 @@ class Game {
         let rev = false;
         for (const b of banners) if (U.inRange(e.x - b.x, e.y - b.y, b.S.range)) { rev = true; break; }
         if (!rev) for (const u of this.units) if (!u.dead && Math.abs(u.x - e.x) < 70 && U.dist(u.x, u.y, e.x, e.y) < 70) { rev = true; break; }
+        if (rev && !e.revealed && e.T.poder) this.powerEvent(e, 'reveal');
         e.revealed = rev;
       }
       if (e.burrowed) {
@@ -1220,12 +1235,15 @@ class Game {
     }
     u.atkAnim = Math.max(0, u.atkAnim - dt);
     u.hurtT = Math.max(0, u.hurtT - dt);
-    u.cd -= dt;
+    // oleo do Petrolao no chao: escorrega (anda mais devagar e golpeia um pouco mais devagar)
+    if (u.oilT > 0) u.oilT -= dt;
+    u.cd -= u.oilT > 0 ? dt * 0.8 : dt;
+    const usp = u.speed * (u.oilT > 0 ? u.oilMul || 0.6 : 1);
     for (const k in u.abT) u.abT[k] -= dt;
 
     if (u.order) {
       const dx = u.order.x - u.x, dy = u.order.y - u.y, d = Math.hypot(dx, dy);
-      const step = u.speed * 1.15 * dt;
+      const step = usp * 1.15 * dt;
       if (d <= step) {
         u.x = u.order.x; u.y = u.order.y; u.order = null; u.moving = false;
       } else {
@@ -1265,7 +1283,7 @@ class Game {
       const gy = t.y + (u.slot - 1) * 5;
       const dx = gx - u.x, dy = gy - u.y, d = Math.hypot(dx, dy);
       if (d > 3) {
-        const step = Math.min(d, u.speed * dt);
+        const step = Math.min(d, usp * dt);
         u.x += (dx / d) * step; u.y += (dy / d) * step;
         u.moving = true; u.walk += dt * 11;
         u.hdx = dx / d; u.hdy = dy / d;
@@ -1277,7 +1295,7 @@ class Game {
         let dmg = U.roll(u.dmg);
         if (u.kind === 'lancers' && !u.charged) {
           const mul = this.abVal(u.owner, 'charge');
-          if (mul) { dmg *= mul; this.stun(t, 0.6); this.addFx({ kind: 'hit', x: t.x, y: this.hitY(t), T: 0.35, big: true }); }
+          if (mul) { dmg *= mul; this.stun(t, 0.6); this.addFx({ kind: 'hit', x: t.x, y: this.hitYV(t), T: 0.35, big: true }); }
           u.charged = true;
         }
         const march = this.marchAt(u.x, u.y);
@@ -1287,7 +1305,7 @@ class Game {
           this.damage(t, dmg, 'magic', u, 'fire');
           if (!t.dead) this.burn(t, (4 + u.level) * (1 + this.tal('burn')), 2.5);
         } else this.damage(t, dmg, 'phys', u);
-        this.addFx({ kind: 'hit', x: (t.x + u.x) / 2, y: this.hitY(t), T: 0.25 });
+        this.addFx({ kind: 'hit', x: (t.x + u.x) / 2, y: this.hitYV(t), T: 0.25 });
         this.sfx({ n: 'sword', x: u.x }, 0.5);
         if (u.heroId === 'boitata') this.sfx({ n: 'ember', x: t.x }, 0.5);
       }
@@ -1295,7 +1313,7 @@ class Game {
       const hx = u.rx + u.ox, hy = u.ry + u.oy;
       const dx = hx - u.x, dy = hy - u.y, d = Math.hypot(dx, dy);
       if (d > 2) {
-        const step = Math.min(d, u.speed * dt);
+        const step = Math.min(d, usp * dt);
         u.x += (dx / d) * step; u.y += (dy / d) * step;
         u.facing = dx >= 0 ? 1 : -1; u.moving = true; u.walk += dt * 11;
         u.hdx = dx / d; u.hdy = dy / d;
@@ -1534,8 +1552,11 @@ class Game {
       if (hurt.length) {
         e.abT = T.heal.cd; e.castAnim = 0.7;
         for (const o of hurt) o.hp = Math.min(o.maxHp, o.hp + T.heal.amt);
-        this.addFx({ kind: 'enemyHeal', x: e.x, y: e.y, r: T.heal.r, T: 0.8 });
-        this.sfx({ n: 'heal', x: e.x }, 0.5);
+        // Vaquinha do Pix (Michele): a mesma cura, com celulares e moedas no lugar do brilho verde
+        const pix = T.poder === 'pix';
+        this.addFx({ kind: 'enemyHeal', x: e.x, y: e.y, r: T.heal.r, T: pix ? 1.1 : 0.8, pix });
+        if (pix) { this.pwText('pix', e.x, e.y - 64, 'Vaquinha do Pix!', '#7fffd4', 15, 4); this.sfx({ n: 'notif', x: e.x }, 0.7); }
+        else this.sfx({ n: 'heal', x: e.x }, 0.5);
       } else e.abT = 0.5;
     }
     if (T.summon && e.abT <= 0 && this.visible(e)) {
@@ -1556,11 +1577,13 @@ class Game {
       e.sabT -= dt;
       if (e.sabT <= 0) this.sabotage(e);
     }
+    if (T.poder) this.updatePower(e, dt, blind);
     if (T.burrow && e.abT <= 0 && this.visible(e)) {
       if (!e.burrowed) {
         e.burrowed = true; e.abT = T.burrow.dur;
         if (e.blocker) { this.releaseTarget(e.blocker); e.blocker = null; }
         this.addFx({ kind: 'poof', x: e.x, y: e.y, T: 0.7 });
+        if (T.poder) this.powerEvent(e, 'burrow');   // Pedalada Fiscal / Fuga para a Italia
       } else {
         e.burrowed = false; e.abT = T.burrow.every;
         this.addFx({ kind: 'poof', x: e.x, y: e.y, T: 0.7 });
@@ -1647,6 +1670,8 @@ class Game {
     if (T.final) this.updateHeart(e, dt);
     // cheia: os bichos do rio nadam mais rapido
     if (T.aquatic && this.flood > 0.5) sp *= 1.3;
+    // oleo do Petrolao na estrada: a turma desliza mais rapido
+    if (e.oilT > 0) { e.oilT -= dt; sp *= e.oilMul || 1.3; }
     // Trilha Falsa (Caipora): perdido, anda de volta pela estrada
     if (e.backT > 0) { e.backT -= dt; sp = -sp * 0.8; if (e.d + sp * dt < 0) sp = 0; }
     e.d += sp * dt;
@@ -1691,6 +1716,148 @@ class Game {
     this.sfx({ n: 'throw', x: e.x }, 0.6);
   }
 
+  // ------------------------------------------------------------ poderes dos escandalos
+  // T.poder vem da variante da chapa rival (DATA.setRival); os numeros ficam em T.pw. Desenhos em js/satira.js
+  // (A.fxPoder, A.enemyPower, A.burrowDash, A.tarifMark), textos flutuantes aqui.
+  // texto flutuante com intervalo minimo por chave (bando de voadores ou de invisiveis nao vira enxurrada de texto)
+  pwText(key, x, y, str, color, size, gap) {
+    const m = this._pwTxt || (this._pwTxt = {});
+    if (m[key] != null && this.time - m[key] < (gap || 0)) return;
+    m[key] = this.time;
+    this.text(x, y, str, color, size, true);
+  }
+
+  updatePower(e, dt, blind) {
+    const T = e.T, P = T.pw || {};
+    if (e.jewelT > 0) e.jewelT -= dt;
+    switch (T.poder) {
+      case 'petrolao':   // Ministro do Jatinho: barril de oleo caindo do jatinho na estrada
+        if (blind || !this.visible(e)) return;
+        e.pwT -= dt;
+        if (e.pwT <= 0) { e.pwT = P.cd; this.dropOil(e); }
+        return;
+      case 'mensalao':   // Ze Guerreiro: envelope que compra a torre mais perto (o motor da sabotagem)
+        if (blind || e.blocker || !this.visible(e)) return;
+        e.pwT -= dt;
+        if (e.pwT <= 0) this.bribe(e);
+        return;
+      case 'joias':      // Capitao: escudo de joias que corta o dano por alguns segundos
+        if (blind || e.burrowed || !this.visible(e)) return;
+        e.pwT -= dt;
+        if (e.pwT <= 0) {
+          e.pwT = P.cd; e.jewelT = P.dur; e.castAnim = 0.6;
+          this.addFx({ kind: 'joias', e, x: e.x, y: e.y, T: 0.7 });
+          this.text(e.x, e.y - 96, 'Joias da Arábia!', '#bff0ff', 18, true);
+          this.sfx({ n: 'magic', x: e.x }, 0.9);
+        }
+        return;
+      case 'tarifaco': { // Dudu: perto dele as torres atiram mais devagar
+        if (blind || !this.visible(e)) return;
+        for (const t of this.towers) {
+          if (t.working || !U.inRange(t.x - e.x, t.y - e.y, P.r)) continue;
+          if (!(t.tarifT > 0)) {
+            t.tarifStart = this.time;
+            this.pwText('tarifaco', t.x, t.y - 96, 'Tarifaço!', '#ff9a8a', 15, 2.5);
+            this.sfx({ n: 'mark', x: t.x }, 0.35);
+          }
+          t.tarifT = 0.25; t.tarifMul = P.mul;
+        }
+        return;
+      }
+      case 'vorcash':    // Cacique: CDB de 140% cura a turma em volta numa chuva de moedas
+        if (blind || !this.visible(e)) return;
+        e.pwT -= dt;
+        if (e.pwT <= 0) {
+          e.pwT = P.cd; e.castAnim = 0.8;
+          for (const o of this.enemies) if (!o.dead && !o.reached && U.inRange(o.x - e.x, o.y - e.y, P.r)) o.hp = Math.min(o.maxHp, o.hp + P.amt);
+          this.addFx({ kind: 'vorcash', x: e.x, y: e.y, r: P.r, T: 1.3 });
+          this.text(e.x, e.y - 92, 'CDB de 140%!', '#ffe08a', 18, true);
+          this.sfx({ n: 'coin', x: e.x });
+        }
+        return;
+      case 'rachadinha': // Zero-Um: leva uma parte da verba do jogador (tambem a cada recurso, no updateHeart)
+        if (e.untargetable || !this.visible(e)) return;
+        e.pwT -= dt;
+        if (e.pwT <= 0) this.rachadinha(e);
+        return;
+    }
+  }
+
+  // momentos dos poderes: 'die' (kill), 'burrow' (sumiu), 'reveal' (invisivel apareceu)
+  powerEvent(e, ev) {
+    const T = e.T, P = T.pw || {};
+    if (ev === 'die') {
+      if (T.poder === 'rouanet') {
+        // o saco de verba cai do corpo e, no chao, cura um pouco quem esta perto
+        this.projs.push({ kind: 'rouanetBag', sx: e.x, sy: e.y - 26, x: e.x, y: e.y - 26, tx: e.x + U.rand(-8, 8), ty: e.y + 2, t: 0, T: 0.45, arc: 22, ang: 0, r: P.r, amt: P.amt });
+      } else if (T.poder === 'leao') {
+        this.addFx({ kind: 'taxou', x: e.x, y: e.y, T: 1.0 });
+        this.text(e.x, e.y - 58, 'Taxou!', '#ffd54a', 17, true);
+        this.sfx({ n: 'sell', x: e.x }, 0.7);
+      } else if (T.poder === 'odio') {
+        this.addFx({ kind: 'odio', x: e.x, y: e.y, T: 1.1 });
+        this.text(e.x, e.y - 70, 'Gabinete do Ódio!', '#ff9a8a', 17, true);
+        this.sfx({ n: 'notif', x: e.x }, 0.8);
+      }
+    } else if (ev === 'burrow') {
+      if (T.poder === 'pedalada') {
+        this.pwText('pedalada', e.x, e.y - 56, 'Pedalada!', '#ffb0a0', 16, 1.5);
+        this.sfx({ n: 'chime', x: e.x }, 0.5);   // campainha da bicicleta
+      } else if (T.poder === 'fuga') {
+        this.pwText('fuga', e.x, e.y - 56, 'Fugiu!', '#b6f0a0', 16, 1.5);
+        this.sfx({ n: 'throw', x: e.x }, 0.7);   // zuum da fuga
+      }
+    } else if (ev === 'reveal' && T.poder === 'secreto') {
+      if (e.secT != null && this.time - e.secT < 6) return;
+      e.secT = this.time;
+      this.addFx({ kind: 'secreto', x: e.x, y: e.y, T: 1.0 });
+      this.pwText('secreto', e.x, e.y - 60, 'Orçamento Secreto!', '#d8ccff', 15, 2.5);
+      this.sfx({ n: 'mark', x: e.x }, 0.5);
+    }
+  }
+
+  // Petrolao: o barril cai do jatinho um pouco adiante na estrada e vira uma mancha de oleo (zona 'oil')
+  dropOil(e) {
+    const P = e.T.pw;
+    const q = e.path.at(Math.min(e.path.len - 1, e.d + 16), this._tmp);
+    const sx = e.x, sy = e.y - FLY_H - 4, tx = q.x, ty = q.y;
+    // arc = queda/4: a trajetoria vira y = sy + (ty - sy) k^2, um tombo acelerando
+    this.projs.push({ kind: 'oilBarrel', sx, sy, x: sx, y: sy, tx, ty, t: 0, T: 0.6, arc: (ty - sy) / 4, ang: 0, pw: P });
+    e.castAnim = 0.4;
+    this.sfx({ n: 'throw', x: e.x }, 0.45);
+  }
+
+  // Mensalao: o envelope vai ate a torre mais perto, que para por P.dur (mesmo projetil e marca da sabotagem)
+  bribe(e) {
+    const P = e.T.pw;
+    let best = null, bd = Infinity;
+    for (const t of this.towers) {
+      if (t.disabledT > 0 || t.working || !U.inRange(t.x - e.x, t.y - e.y, P.r)) continue;
+      const d = U.dist(t.x, t.y, e.x, e.y);
+      if (d < bd) { bd = d; best = t; }
+    }
+    if (!best) { e.pwT = 0.5; return; }
+    e.pwT = P.cd;
+    e.castAnim = 0.5;
+    const sy = e.y - 18, ty = best.y - 24;
+    this.projs.push({ kind: 'pot', skey: 'mensalao', sx: e.x, sy, x: e.x, y: sy, tx: best.x, ty, t: 0, T: 0.6, arc: 50, ang: 0, tower: best, dur: P.dur });
+    this.sfx({ n: 'throw', x: e.x }, 0.6);
+  }
+
+  // Rachadinha: uma parte da verba sai do contador e voa para o Zero-Um
+  rachadinha(e) {
+    const P = e.T.pw;
+    e.pwT = P.cd;
+    const take = Math.min(Math.floor(this.gold), U.clamp(Math.round(this.gold * P.pct), P.min, P.max));
+    if (take <= 0) return;
+    this.gold -= take;
+    this.stats.rach = (this.stats.rach || 0) + take;
+    e.castAnim = 0.8;
+    this.addFx({ kind: 'rachadinha', e, x: e.x, y: e.y, n: take, T: 1.6 });
+    this.text(e.x, e.y - 100, 'Rachadinha!', '#ffe08a', 19, true);
+    this.sfx({ n: 'sell', x: e.x }, 0.9);
+  }
+
   firestorm(e) {
     const S = e.T.firestorm;
     e.fsT = S.cd;
@@ -1717,6 +1884,7 @@ class Game {
     t.buildT += dt;
     t.popT += dt;
     if (t.fireT > 0) t.fireT -= dt;
+    if (t.tarifT > 0) t.tarifT -= dt;   // Tarifaco: o Dudu renova enquanto esta perto (updatePower)
     if (t.working) {
       if (t.disabledT > 0) t.disabledT -= dt;
       if (t.buildT >= t.buildDur) this.finishWork(t);
@@ -1724,8 +1892,11 @@ class Game {
     }
     if (t.disabledT > 0) { t.disabledT -= dt; t.cd = Math.max(t.cd, 0.2); return; }
     const S = t.E || t.S;
-    // fumaca do Coracao: recarga mais lenta
-    if (t.chokeT > 0) { t.chokeT -= dt; t.cd -= dt / DATA.ENEMIES.heart.choke.rate; } else t.cd -= dt;
+    // fumaca do Coracao: recarga mais lenta; Tarifaco (Dudu por perto): tambem
+    let tick = dt;
+    if (t.chokeT > 0) { t.chokeT -= dt; tick /= DATA.ENEMIES.heart.choke.rate; }
+    if (t.tarifT > 0) tick *= t.tarifMul || 0.75;
+    t.cd -= tick;
     for (const k in t.abT) t.abT[k] -= dt;
     const top = this.towerTop(t);
     const spec = t.spec;
@@ -1784,7 +1955,7 @@ class Game {
         const chain = [e];
         let cur = e;
         const dmg = U.roll(S.dmg);
-        const pts = [[sx, sy], [e.x, this.hitY(e)]];
+        const pts = [[sx, sy], [e.x, this.hitYV(e)]];
         for (let j = 0; j < S.jumps; j++) {
           let nb = null, nd = 110;
           for (const o of this.enemies) {
@@ -1793,7 +1964,7 @@ class Game {
             if (d < nd) { nd = d; nb = o; }
           }
           if (!nb) break;
-          chain.push(nb); pts.push([nb.x, this.hitY(nb)]); cur = nb;
+          chain.push(nb); pts.push([nb.x, this.hitYV(nb)]); cur = nb;
         }
         const st = this.abVal(t, 'overload');
         chain.forEach((o, i) => {
@@ -2109,7 +2280,7 @@ class Game {
         }
         break;
       }
-      case 'bomb': case 'bomblet': case 'barrel': case 'flask': case 'waterball': case 'pot': case 'fireball': {
+      case 'bomb': case 'bomblet': case 'barrel': case 'flask': case 'waterball': case 'pot': case 'fireball': case 'oilBarrel': case 'rouanetBag': {
         p.t += dt;
         if (p.t < 0) break;
         const k = Math.min(1, p.t / p.T);
@@ -2144,7 +2315,10 @@ class Game {
             // marca visual da sabotagem (tinta rosa ou placa de greve) enquanto a torre fica parada
             if (p.tower && this.towers.includes(p.tower)) { p.tower.sabKey = p.skey; p.tower.sabDur = p.dur; p.tower.sabEnd = this.time + p.dur; }
             this.addFx({ kind: 'sabhit', skey: p.skey, x: p.tx, y: p.ty, T: 1.0 });
-            this.sfx({ n: 'sabotage', x: p.tx });
+            // poderes: Mensalao (envelope do Ze Guerreiro) e Menino Veste Azul (tinta da Damaris)
+            if (p.skey === 'mensalao') { this.text(p.tx, p.ty - 34, 'Mensalão!', '#ffe08a', 17, true); this.sfx({ n: 'coin', x: p.tx }); }
+            else this.sfx({ n: 'sabotage', x: p.tx });
+            if (p.skey === 'damaris' && DATA.ENEMIES.saboteur.poder === 'menino') this.text(p.tx, p.ty - 34, 'Menino veste azul!', '#9fd0ff', 16, true);
           } else if (p.kind === 'fireball') {
             this.disableTower(p.tower, p.dur);
             if (p.tower) p.tower.fireT = Math.max(p.tower.fireT || 0, p.dur);
@@ -2152,6 +2326,23 @@ class Game {
             this.addFx({ kind: 'cash', x: p.tx, y: p.ty + 20, r: 52, T: 0.9 });
             for (const u of this.units) if (!u.dead && U.dist(u.x, u.y, p.tx, p.ty + 20) < 55) this.hitUnit(u, 30);
             this.sfx({ n: 'boom', x: p.tx }, 0.7);
+          } else if (p.kind === 'oilBarrel') {
+            // Petrolao: o barril estoura e deixa a mancha de oleo na estrada
+            const P = p.pw;
+            this.zones.push({ kind: 'oil', x: p.tx, y: p.ty, r: P.r, t: 0, T: P.dur, tick: 0, boost: P.boost, troop: P.troop });
+            this.addFx({ kind: 'oilSplat', x: p.tx, y: p.ty, r: P.r, T: 0.6 });
+            this.pwText('petrolao', p.tx, p.ty - 40, 'Petrolão!', '#e6dcff', 16, 3);
+            this.sfx({ n: 'splat', x: p.tx }, 0.6);
+          } else if (p.kind === 'rouanetBag') {
+            // Verba da Rouanet: o saco estoura e cura um pouco quem esta em volta
+            let n = 0;
+            for (const o of this.enemies) {
+              if (o.dead || o.reached || o.hp >= o.maxHp || !U.inRange(o.x - p.tx, o.y - p.ty, p.r)) continue;
+              o.hp = Math.min(o.maxHp, o.hp + p.amt); n++;
+            }
+            this.addFx({ kind: 'rouanet', x: p.tx, y: p.ty, r: p.r, T: 0.9 });
+            if (n) this.pwText('rouanet', p.tx, p.ty - 44, 'Verba da Rouanet!', '#b6ec4a', 15, 3);
+            this.sfx({ n: 'coin', x: p.tx }, 0.45);
           }
         }
         break;
@@ -2194,7 +2385,7 @@ class Game {
               this.text(e.x, e.y - 40, 'Crítico!', '#ff6b4a', 16);
             }
             this.damage(e, dmg, 'phys', null);
-            this.addFx({ kind: 'hit', x: e.x, y: this.hitY(e), T: 0.3 });
+            this.addFx({ kind: 'hit', x: e.x, y: this.hitYV(e), T: 0.3 });
             if (p.exp) {
               this.explode(e.x, e.y, 60, [p.exp * 0.8, p.exp * 1.2], null, false, 'cash');
               p.left = 0;
@@ -2270,6 +2461,14 @@ class Game {
       if (z.tick <= 0) {
         z.tick = 0.25;
         for (const e of this.enemiesIn(z.x, z.y, z.r, true)) { this.slow(e, 0.5, 0.4); this.wet(e, 1.5); }
+      }
+    } else if (z.kind === 'oil') {
+      // Petrolao: quem anda pela mancha desliza mais rapido; os aliados escorregam
+      z.tick -= dt;
+      if (z.tick <= 0) {
+        z.tick = 0.2;
+        for (const e of this.enemiesIn(z.x, z.y, z.r, true)) { e.oilT = 0.3; e.oilMul = z.boost; }
+        for (const u of this.units) if (!u.dead && U.inRange(u.x - z.x, u.y - z.y, z.r)) { u.oilT = 0.3; u.oilMul = z.troop; }
       }
     } else if (z.kind === 'tornado') {
       // anda para tras no caminho
@@ -2357,6 +2556,8 @@ class Game {
       this.text(e.x, e.y - 70, 'Entrou com recurso!', '#c9b8e8', 18);
       this.sfx({ n: 'bossDie', x: e.x }, 0.5);
       this.sfx({ n: 'heartSmoke', x: e.x });
+      // Rachadinha (Zero-Um): cada recurso tambem leva uma parte da verba (o texto sobe acima do recurso)
+      if (T.poder === 'rachadinha') this.later(0.9, () => { if (!e.dead && !e.reached) this.rachadinha(e); });
     }
     // torres perto atiram mais devagar (a fumaca sufoca)
     for (const t of this.towers) if (U.inRange(t.x - e.x, t.y - e.y, T.choke.r)) t.chokeT = 0.2;

@@ -65,6 +65,7 @@ const Snd = {
   setSfx(on) {
     this.sfxOn = on;
     if (this.sfxGain) this.sfxGain.gain.setTargetAtTime(on ? 0.55 : 0, this.ctx.currentTime, 0.05);
+    if (!on) for (const k in this.gritos) if (this.gritos[k]) this.gritos[k].pause();
   },
 
   // ------------------------------------------------------------ buffers
@@ -575,9 +576,40 @@ const Snd = {
     burburinho: { g: 0.639, pj: 1 }, torcidaLonge: { g: 0.188, pj: 0.5 }, apitoLonge: { g: 0.2, pj: 1 }, megafoneLonge: { g: 0.544, pj: 1 },
     bandeira: { g: 3.75, pj: 1 }, notif: { g: 0.46, pj: 0 }, celular: { g: 0.473, pj: 0.5 },
   },
+  // grito da turma adversaria no comeco de cada onda: sons/gritos/rival_R.mp3 (a turma do PT, quando o jogador e a
+  // Verde-Amarela) e rival_V.mp3 (a do Bolsonaro). Os arquivos ficam fora do repositorio publico; sem eles, nada toca.
+  // Toca por <audio> (o WebAudio nao le arquivo local em file://) e abaixa a musica enquanto dura.
+  gritos: {},
+  grito() {
+    if (!this.sfxOn || typeof DATA === 'undefined' || !DATA.RIVAL) return;
+    const k = DATA.RIVAL;
+    let a = this.gritos[k];
+    if (a === undefined) {
+      a = new Audio(`sons/gritos/rival_${k}.mp3`);
+      a.preload = 'auto';
+      a.addEventListener('error', () => { this.gritos[k] = null; });
+      this.gritos[k] = a;
+    }
+    if (!a) return;
+    try {
+      a.currentTime = 0;
+      a.volume = 0.85;
+      const p = a.play();
+      if (p && p.catch) p.catch(() => {});
+      if (this.musicGain && this.musicOn) {
+        this.musicGain.gain.setTargetAtTime(0.1, this.ctx.currentTime, 0.15);
+        const volta = () => {
+          a.removeEventListener('ended', volta);
+          if (this.musicOn) this.musicGain.gain.setTargetAtTime(0.32, this.ctx.currentTime, 0.4);
+        };
+        a.addEventListener('ended', volta);
+      }
+    } catch (e) { /* sem som: segue o jogo */ }
+  },
   play(name, vol, x) {
     if (!this.ctx || !this.sfxOn) return;
     if (name && typeof name === 'object') { x = name.x; name = name.n; }
+    if (name === 'horn' || name === 'hornBig') setTimeout(() => this.grito(), 450);
     const fn = this.fx[name];
     if (!fn) return;
     const c = this.ctx, now = c.currentTime, M = this.meta[name] || {};

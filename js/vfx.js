@@ -929,7 +929,7 @@ const Vfx = {
     this.enemyExtra(e, g, t);
     this.sig(c, e, g, t);
     if (!(e.shockT > 0 || e.arcT > 0 || e.heatT > 0)) return;
-    const y = g.hitY(e), s = e.T.size;
+    const y = g.hitYV ? g.hitYV(e) : g.hitY(e), s = e.T.size * (typeof charK === 'function' ? charK() : 1);
     c.save();
     if (e.shockT > 0 && ladoR()) this.searGrill(c, e, y, s, t);
     else if (e.shockT > 0) {
@@ -992,7 +992,7 @@ const Vfx = {
     if (!e || e.dead) return;
     const P = MAGIC.sun;
     const [x0, y0] = this.topOf(tw, g);
-    const x1 = e.x, y1 = g.hitY(e);
+    const x1 = e.x, y1 = g.hitYV ? g.hitYV(e) : g.hitY(e);
     const k = Math.min(1, tw.beamT / tw.S.ramp);
     const dx = x1 - x0, dy = y1 - y0, len = Math.hypot(dx, dy) || 1;
     const nx = -dy / len, ny = dx / len;
@@ -1405,6 +1405,7 @@ Object.assign(Vfx, {
     B.hx = hl > 0.05 ? e.hdx / hl : B.d; B.hy = hl > 0.05 ? e.hdy / hl : 0;
     B.mv = e.moving !== false;
     B.s = T.size;
+    B.k = typeof charK === 'function' ? charK() : 1;   // boneco maior na fase: poeira e escapamento acompanham
     // vista da folha em uso (parado ou atacando ele fica de lado)
     B.v = !B.mv || e.atkAnim > 0 || e.castAnim > 0 ? 'r' : e._vw || 'r';
     return B;
@@ -1430,11 +1431,13 @@ Object.assign(Vfx, {
 
   // poeira clarinha dos pes (ou das rodas), para tras do passo
   sigDust(B, back, s, col) {
+    back *= B.k || 1;
     this.emit(B.x - B.hx * back + U.rand(-3, 3), B.base - 1 - B.hy * back + U.rand(-1.5, 1.5), -B.hx * U.rand(6, 16) + U.rand(-4, 4), U.rand(-12, -4), U.rand(0.55, 0.95), s * U.rand(1.05, 1.45), col || '#f1dfc2', { kind: 'smoke', drag: 0.5 });
   },
 
   // fumaca de escapamento: sai para tras, na altura do cano
   sigExhaust(B, back, up, s) {
+    back *= B.k || 1; up *= B.k || 1;
     this.emit(B.x - B.hx * back + U.rand(-1.5, 1.5), B.base - up - B.hy * back, -B.hx * U.rand(14, 26) + U.rand(-4, 4), U.rand(-14, -6), U.rand(0.5, 0.8), s * U.rand(0.9, 1.3), Math.random() < 0.5 ? '#6f7680' : '#959ba3', { kind: 'smoke', drag: 0.4 });
   },
 
@@ -1620,7 +1623,7 @@ Object.assign(Vfx, {
 
   // inimigos que brilham ou queimam
   enemyExtra(e, g, t) {
-    const y = g.hitY(e);
+    const y = g.hitYV ? g.hitYV(e) : g.hitY(e);
     // satira: sem brasa nem fumaca de possessao nos adversarios
     if (e.burnT > 0) {
       const n = this.rate(e, 14);
@@ -1753,7 +1756,16 @@ Object.assign(Vfx, {
         Light.add(f.x, f.y - 20, 260, '#fff2c0', 1.0 * a * a, 0.4);
         break;
       case 'court': Light.add(f.x, f.y - 20, 150, '#d8ccff', 0.5 * a, 0.25); break;
-      case 'sabhit': if (f.skey !== 'pelego') Light.add(f.x, f.y, 60, '#ff9ac8', 0.35 * a); break;
+      case 'sabhit': if (f.skey !== 'pelego') Light.add(f.x, f.y, 60, f.skey === 'mensalao' ? '#ffd54a' : '#ff9ac8', 0.35 * a); break;
+      // poderes dos escandalos (js/satira.js, A.fxPoder): brilho de dinheiro, de joia e de cura
+      case 'rachadinha': if (f.e && !f.e.dead && f.t / f.T > 0.6) Light.add(f.e.x, f.e.y - 50, 110, '#ffd54a', 0.6 * a); break;
+      case 'vorcash': Light.add(f.x, f.y - 20, (f.r || 110) * 1.8, '#ffd54a', 0.55 * a, 0.3); break;
+      case 'rouanet': Light.add(f.x, f.y, 70, '#d4ff8a', 0.4 * a); break;
+      case 'taxou': Light.add(f.x, f.y - 10, 70, '#ffd54a', 0.45 * a); break;
+      case 'joias': Light.add(f.x, f.y - 50, 160, '#cfefff', 0.7 * a, 0.3); break;
+      case 'secreto': Light.add(f.x, f.y - 40, 80, '#e6dcff', 0.4 * a); break;
+      // texto dos poderes: na noite, acende uma luz propria para nao sumir no escuro
+      case 'text': if (f.lit && g.isNight && g.isNight()) Light.add(f.x, f.y - 14, 20 + f.str.length * 3.5, '#fff6e6', 0.6 * Math.min(1, a * 3)); break;
       case 'poof':
         if (f.big && !f._sp) {
           f._sp = 1;
@@ -2052,7 +2064,7 @@ Object.assign(Vfx, {
     const e = tw.beam;
     if (!e || e.dead) return;
     const [x0, y0] = this.topOf(tw, g);
-    const x1 = e.x, y1 = g.hitY(e);
+    const x1 = e.x, y1 = g.hitYV ? g.hitYV(e) : g.hitY(e);
     const k = Math.min(1, tw.beamT / tw.S.ramp);
     const dx = x1 - x0, dy = y1 - y0, len = Math.hypot(dx, dy) || 1;
     const nx = -dy / len, ny = dx / len;

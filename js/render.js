@@ -18,6 +18,23 @@ const Render = {
     this.bgKey = key;
   },
 
+  // fundo em alta (imagem original do cenario) para quando a camera aproxima; null sem o fundo do Blender
+  hiBg(g) {
+    const bg = typeof SPR !== 'undefined' && SPR && SPR.bgs && SPR.bgs.get(g.levelIdx);
+    return bg && bg.img && bg.img.naturalWidth > W * App.scale ? bg.img : null;
+  },
+
+  // projetil indo num boneco: o acerto do jogo fica na mesma altura (game.hitY), mas o desenho sobe junto com o
+  // boneco maior (charLift) conforme chega perto do alvo
+  projLift(p) {
+    const e = p.target;
+    if (!e || p.kind === 'bolt' || typeof charLift !== 'function') return 0;
+    const lift = charLift(e);
+    if (!lift) return 0;
+    const w = p.T ? U.clamp(p.t / p.T, 0, 1) : U.clamp(1 - Math.hypot(p.x - e.x, p.y - e.y) / 120, 0, 1);
+    return lift * w * w * (3 - 2 * w);
+  },
+
   hpBarY(e) {
     const T = e.T;
     const top = A.enemyTop && ESPR.ready(e.type) && A.enemyTop(e);
@@ -96,7 +113,13 @@ const Render = {
     }
     c.save();
     c.translate(sx, sy);
-    c.drawImage(this.bg, 0, 0, W, H);
+    // camera (js/camera.js): close-up e zoom livre; o tremor fica na tela, o resto e mundo. Com zoom, o fundo vem
+    // direto da imagem do Blender (3840 px) em vez do cache na resolucao da tela, para nao borrar
+    const cam = v.cam && v.cam.z > 1.001 ? v.cam : null;
+    if (cam) cam.apply(c);
+    const hi = cam && this.hiBg(g);
+    if (hi) { c.save(); c.imageSmoothingEnabled = true; c.imageSmoothingQuality = 'high'; c.drawImage(hi, 0, 0, W, H); c.restore(); }
+    else c.drawImage(this.bg, 0, 0, W, H);
     if (g.flood > 0) this.floodLayer(c, g, t);
     if (A.ambient) A.ambient(c, g, t); // agua, lava e tamareiras do cenario do Blender (js/sprites.js)
 
@@ -162,10 +185,13 @@ const Render = {
         if (o.working) this.workBar(c, o, t);
         if (o.disabledT > 0) this.disabled(c, o, t);
         else if (o.bDmg > 0) this.buffMark(c, o, t);
+        if (o.tarifT > 0 && !o.working && A.tarifMark) A.tarifMark(c, o, t, g);   // Tarifaco (Dudu por perto)
         if (o.rally && v.sel && v.sel.tower === o) A.flag(c, o.rally.x - 3, o.rally.y + 4, 22, TEAL, t);
       } else if (kind === 1) {
-        A.drawEnemy(c, o, t);
+        // Pedalada Fiscal / Fuga para a Italia: sumida, vira o vulto disparando (js/satira.js)
+        if (!(o.burrowed && A.burrowDash && A.burrowDash(c, o, t))) A.drawEnemy(c, o, t);
         Vfx.enemy(c, o, g, t);
+        if (A.enemyPower) A.enemyPower(c, o, g, t);   // poderes dos escandalos presos no boneco
       }
       else if (kind === 2) A.drawUnit(c, o, t, v.heroSel && o.kind === 'hero');
       else if (kind === 4) A.lever(c, o.f, t, v.hoverLever === o.i);
@@ -177,13 +203,19 @@ const Render = {
     for (const e of g.enemies) if (e.flying) {
       A.drawEnemy(c, e, t);
       Vfx.enemy(c, e, g, t);
+      if (A.enemyPower) A.enemyPower(c, e, g, t);
     }
     for (const f of g.fx) if (f.kind === 'corpse' && f.e.flying) this.fx(c, f, g);
 
     // feixes solares
     for (const tw of g.towers) if (tw.spec === 'sun' && tw.beam) this.sunBeam(c, tw, g, t);
 
-    for (const p of g.projs) { this.proj(c, p, g, t); Vfx.projExtra(p, g); }
+    for (const p of g.projs) {
+      const lift = this.projLift(p);
+      if (lift) { c.save(); c.translate(0, -lift); }
+      this.proj(c, p, g, t); Vfx.projExtra(p, g);
+      if (lift) c.restore();
+    }
 
     // efeitos
     for (const f of g.fx) {
@@ -199,11 +231,12 @@ const Render = {
     Light.apply(c, g);
     if (A.afterLight) A.afterLight(c, g, t); // gancho para o sprites.js desenhar brilho depois da luz
 
-    // barras de vida
+    // barras de vida (a altura ja vem do topo do sprite, que cresce com o boneco; a largura acompanha)
+    const CK = typeof charK === 'function' ? charK() : 1;
     for (const e of g.enemies) {
       if (!g.visible(e) || e.burrowed && e.type !== 'worm') continue;
       if (e.T.stealth && !e.revealed) continue;
-      const bw = U.clamp(e.T.size * 2.1, 20, 64);
+      const bw = U.clamp(e.T.size * 2.1, 20, 64) * CK;
       const by = e.y - this.hpBarY(e);
       this.bar(c, e.x - bw / 2, by, bw, e.T.boss ? 6 : 4, e.hp / e.maxHp, '#e23b2e', '#7ad94a');
       let ix = e.x + bw / 2 + 4;
@@ -214,7 +247,7 @@ const Render = {
       if (e.armorRedT > 0) { A.rect(c, ix - 2.4, by - 0.4, 4.8, 4.8, '#a9b0b5', OUT, 1); ix += 6; }
       if (e.blindT > 0) { A.circ(c, ix, by + 2, 2.6, '#f4ecd8', OUT, 1); A.line(c, ix - 2, by + 4, ix + 2, by, '#8a6a3a', 1); ix += 6; }
       if (e.T.stealth) { A.ell(c, e.x - bw / 2 - 6, by + 2, 3.4, 2.2, '#fff8e0', OUT, 1); A.circ(c, e.x - bw / 2 - 6, by + 2, 1.1, '#1a5a56'); }
-      if (v.selEnemy === e) A.ell(c, e.x, e.y + 1, e.T.size + 8, (e.T.size + 8) * 0.42, null, 'rgba(255,90,60,0.8)', 2);
+      if (v.selEnemy === e) A.ell(c, e.x, e.y + 1, (e.T.size + 8) * CK, (e.T.size + 8) * 0.42 * CK, null, 'rgba(255,90,60,0.8)', 2);
     }
     for (const u of g.units) {
       if (u.dead) continue;
@@ -341,6 +374,7 @@ const Render = {
   zone(c, z, t) {
     const k = z.t / z.T;
     const fade = Math.min(1, (1 - k) * 4, z.t * 4);
+    if (z.kind === 'oil') { if (A.fxOilSlick) A.fxOilSlick(c, z, t, fade); return; }   // Petrolao: mancha de oleo
     if (z.kind === 'fire' && z.moto && A.fxMotoZone) A.fxMotoZone(c, z, t, fade);   // Motociata: pneu e escapamento
     // torres da chapa do jogador (js/satira.js, "EFEITOS POR CHAPA")
     else if (z.kind === 'fire' && ladoV() && A.chCaramelZone) A.chCaramelZone(c, z, t, fade);     // Calda Quente
@@ -408,6 +442,8 @@ const Render = {
     if (p.kind === 'enemyArrow' && A.fxEnemyShot) { A.fxEnemyShot(c, p, t); return; }
     if (p.kind === 'pot' && A.fxThrow) { A.fxThrow(c, p, t); return; }
     if (p.kind === 'fireball' && A.fxBag) { A.fxBag(c, p, t); return; }
+    if (p.kind === 'oilBarrel' && A.fxOilBarrel) { A.fxOilBarrel(c, p, t); return; }     // Petrolao
+    if (p.kind === 'rouanetBag' && A.fxRouanetBag) { A.fxRouanetBag(c, p, t); return; }  // Verba da Rouanet
     if (p.kind === 'herb' && A.fxDoc) { A.fxDoc(c, p, t); return; }
     if (p.kind === 'hawk' && A.fxLHand) { A.fxLHand(c, p, t); return; }
     switch (p.kind) {
@@ -577,6 +613,7 @@ const Render = {
   fx(c, f, g) {
     const k = f.t / f.T;
     if (A.fxSprite && A.fxSprite(c, f, k)) return; // flecha cravada e impacto em sprite (js/sprites.js)
+    if (A.fxPoder && A.fxPoder(c, f, k, g)) return; // poderes dos escandalos dos adversarios (js/satira.js)
     // efeitos tematicos (js/satira.js)
     switch (f.kind) {
       case 'lpop': A.fxLPop(c, f, k); return;          // impacto do Faz o L
@@ -887,7 +924,7 @@ const Render = {
         if (e.dead || !(e.frozenT > 0)) break;
         c.save();
         c.globalAlpha = 0.85;
-        const y = g.hitY(e);
+        const y = g.hitYV ? g.hitYV(e) : g.hitY(e);
         for (let i = 0; i < 5; i++) {
           const a = (i / 5) * U.TAU + 0.3, rr = e.T.size * 0.9;
           const x0 = e.x + Math.cos(a) * rr, y0 = y + Math.sin(a) * rr * 0.7;

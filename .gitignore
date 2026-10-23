@@ -10,3 +10,6 @@ __pycache__/
 *.blend1
 .DS_Store
 tools/shots/
+
+# gritos da turma adversaria (audio de terceiros, so na copia local)
+sons/gritos/

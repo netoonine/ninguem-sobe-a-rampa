@@ -24,6 +24,30 @@ from lib import *   # noqa: F401,F403
 import lib
 import inimigos_glb as G
 import unidades_glb as UG
+import esqueleto
+
+
+# travas do esqueleto humano: braco com a mao grudada no corpo nao gira; com mao na coxa, a perna anda mais pelo joelho
+# e o tronco quase nao torce; com mao na cabeca, a cabeca quase nao vira (sem movimento relativo no ponto fundido)
+_turn0 = G.turn
+
+
+def _turn_travado(arm, n, *rots):
+    if n.startswith(('braco', 'antebraco')) and arm.get('preso_' + n[-1]):
+        return
+    k = 1.0
+    if arm.get('preso_coxa') and n.startswith('coxa'):
+        k = 0.45
+    elif arm.get('preso_coxa') and n == 'peito':
+        k = 0.5
+    elif arm.get('preso_cabeca') and n == 'cabeca':
+        k = 0.4
+    if k != 1.0:
+        rots = tuple((ax, ang * k) for ax, ang in rots)
+    return _turn0(arm, n, *rots)
+
+
+G.turn = _turn_travado
 
 # densidade dos sprites da satira: 2.0 (o motor herdado usa 1.5); pessoas reais pedem rosto nitido em tela cheia/Retina
 G.RES = 2.0
@@ -150,6 +174,11 @@ PESSOAS = {'lulala', 'janjinha', 'zeroum', 'capitao', 'nicolau', 'general', 'mic
 def _limita_ergue(tab):
     for k, c in tab.items():
         for sc in (c.get('combo') or [c]):
+            if sc.get('plan') == 'biped':
+                sc.setdefault('esqueleto', 'humano')   # todos os bipedes: esqueleto de verdade (tools/blender/esqueleto.py)
+                sc.setdefault('gingado', 0.07)          # boneco de vinil: o corpo gingando faz o papel do braco
+                sc.setdefault('pulo', 0.024)
+                sc.setdefault('joelho', 0.9)
             if sc.get('plan') == 'biped' and sc.get('glb', k) in PESSOAS:
                 sc['ergue'] = min(sc.get('ergue', 1.6), 0.7)
 
@@ -219,7 +248,10 @@ def parte(key, cfg, root, glb, nome):
     if cfg['plan'] in ('rigid', 'float'):
         ob.parent = corpo
         return {'tag': key, 'body': corpo, 'arm': None, 'mesh': ob, 'info': {}, 'cfg': cfg, 'pts': amostra(ob)}
-    arm, info = G.RIGS[cfg['plan']](nome, ob, root, cfg)
+    if cfg['plan'] == 'biped' and cfg.get('esqueleto') == 'humano':
+        arm, info = esqueleto.rig_humano(nome, ob, root, cfg)   # esqueleto de verdade (tools/blender/esqueleto.py)
+    else:
+        arm, info = G.RIGS[cfg['plan']](nome, ob, root, cfg)
     arm.parent = corpo
     return {'tag': key, 'body': corpo, 'arm': arm, 'mesh': ob, 'info': info, 'cfg': cfg, 'pts': amostra(ob)}
 

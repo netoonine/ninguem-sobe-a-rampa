@@ -880,7 +880,7 @@ def pose_biped(parts, mode, f, view):
     a = TAU * f / WALK_N
     tails = [b.name for b in arm.pose.bones if b.name.startswith('cauda')]
     if mode == 'walk':
-        place(parts, view, (0, 0, 0.014 * abs(math.sin(a))))
+        place(parts, view, (0, 0, parts['cfg'].get('pulo', 0.014) * abs(math.sin(a))))
         passo, joelho = parts['cfg'].get('passo', 0.45), parts['cfg'].get('joelho', 0.7)
         for nm, s in (('L', 1), ('R', -1)):
             ph = s * math.sin(a)
@@ -889,6 +889,7 @@ def pose_biped(parts, mode, f, view):
             sw = parts['cfg'].get('arm', 0.5)
             turn(arm, 'braco' + nm, (Y, sw * ph), (X, s * 0.12))
             turn(arm, 'antebraco' + nm, (Y, -0.5 * sw - 0.3 * sw * ph))
+        turn(arm, 'quadril', (X, parts['cfg'].get('gingado', 0.0) * math.sin(a)))
         turn(arm, 'peito', (Z, 0.1 * math.sin(a)), (Y, 0.04))
         turn(arm, 'cabeca', (Z, -0.06 * math.sin(a)), (Y, 0.04 * math.sin(2 * a)))
         for i, t in enumerate(tails):

@@ -12,7 +12,7 @@ DATA.ENEMIES = {
   raider: {
     hp: 34, speed: 38, armor: 0, mres: 0, gold: 6, lives: 1,
     dmg: [1, 4], rate: 1.0, size: 10,
-    V: { spr: 'pneu', name: 'Patriota do Pneu', desc: 'Reza abraçado no pneu e marcha em fila. Fraco sozinho, chato em bando.' },
+    V: { spr: 'pneu', name: 'Patriota do Pneu', desc: 'Marcha em fila abraçado no pneu do caminhão. Fraco sozinho, chato em bando.' },
     R: { spr: 'mortadela', name: 'Militante da Mortadela', desc: 'Veio pelo sanduíche e ficou pela causa. Fraco sozinho, chato em bando.' },
     tip: 'Qualquer torre resolve.',
   },
@@ -20,7 +20,9 @@ DATA.ENEMIES = {
     hp: 20, speed: 84, armor: 0, mres: 0, gold: 4, lives: 1,
     dmg: [1, 3], rate: 0.8, size: 9,
     V: { spr: 'motociata', name: 'Motociata', desc: 'Passa roncando o motor antes que as torres reajam.' },
-    R: { spr: 'rouanet', name: 'Bonde da Rouanet', desc: 'Artistas correndo atrás do edital antes que ele feche.' },
+    R: { spr: 'rouanet', name: 'Bonde da Rouanet', desc: 'Correm atrás do edital. Verba da Rouanet: ao cair, o saco de verba cura um pouco quem está perto.',
+      tip: 'Os {tropa} seguram o bando; {o:archer} acaba com ele. Derrube-os longe da turma.',
+      poder: 'rouanet', pwName: 'Verba da Rouanet', pw: { r: 55, amt: 8 } },
     tip: 'Os {tropa} seguram o bando; {o:archer} acaba com ele.',
   },
   nomad: {
@@ -35,30 +37,39 @@ DATA.ENEMIES = {
     hp: 120, speed: 30, armor: 0.55, mres: 0, gold: 14, lives: 1,
     dmg: [6, 10], rate: 1.2, size: 14,
     V: { spr: 'general', name: 'General Logística', desc: 'Um manda, o outro obedece: marcha atrás de uma couraça de caixas de remédio.' },
-    R: { spr: 'ze', name: 'Zé Guerreiro', desc: 'Punho erguido e jaqueta de guerreiro do povo: envelope e cotovelada não passam.' },
+    R: { spr: 'ze', name: 'Zé Guerreiro', desc: 'Punho erguido, jaqueta de guerreiro do povo. Mensalão: manda um envelope e a torre mais perto para.',
+      tip: 'Couraça grossa: {o:mage} ou {h:shred}. Bloqueado, não manda envelope.',
+      poder: 'mensalao', pwName: 'Mensalão', pw: { r: 120, dur: 3, cd: 12 } },
     tip: 'Couraça grossa: use {o:mage} ou {h:shred}.',
   },
   shaman: { aquatic: true,
     hp: 85, speed: 32, armor: 0, mres: 0.6, gold: 16, lives: 1,
     dmg: [2, 5], rate: 1.0, size: 10,
     heal: { r: 85, amt: 30, cd: 5 },
-    V: { spr: 'michele', name: 'Michele Unção', desc: 'Canta no microfone e cura os aliados por perto.' },
+    V: { spr: 'michele', name: 'Michele do Pix', desc: 'Vaquinha do Pix: pede uma ajudinha no celular e o Pix cura os aliados por perto.',
+      poder: 'pix', pwName: 'Vaquinha do Pix' },
     R: { spr: 'chuchu', name: 'Doutor Chuchu', desc: 'Médico de formação: receita calma e cura os aliados por perto.' },
     tip: 'Resiste {ao:mage}. {t:archer} e {tropa} primeiro.',
   },
   vulture: {
     hp: 44, speed: 56, armor: 0, mres: 0, gold: 9, lives: 1,
     flying: true, size: 12, dmg: [3, 6], rate: 1.0,
-    V: { spr: 'dudu', name: 'Dudu Tarifaço', desc: 'Chega de balão, direto dos Estados Unidos, por cima dos assessores e dos barris.' },
-    R: { spr: 'jatinho', name: 'Ministro do Jatinho', desc: 'Voa no jatinho oficial por cima dos assessores e dos barris.' },
+    V: { spr: 'dudu', name: 'Dudu Tarifaço', desc: 'Chega de balão dos Estados Unidos. Tarifaço: perto dele, as torres atiram 20% mais devagar.',
+      tip: '{t:archer}, {t:mage}, {t:cistern} e {t:windmill} o alcançam. Derrube-o antes que chegue às torres.',
+      poder: 'tarifaco', pwName: 'Tarifaço', pw: { r: 90, mul: 0.8 } },
+    R: { spr: 'jatinho', name: 'Ministro do Jatinho', desc: 'Voa no jatinho oficial. Petrolão: solta barris de óleo na estrada, e a turma desliza mais rápido.',
+      tip: '{t:archer}, {t:mage}, {t:cistern} e {t:windmill} o alcançam. No óleo, os {tropa} escorregam.',
+      poder: 'petrolao', pwName: 'Petrolão', pw: { cd: 8, r: 42, dur: 6, boost: 1.3, troop: 0.6 } },
     tip: '{t:archer}, {t:mage}, {t:cistern} e {t:windmill} o alcançam.',
   },
   beetle: {
     hp: 150, speed: 33, armor: 0.3, mres: 0, gold: 16, lives: 1,
     dmg: [5, 9], rate: 1.1, size: 12,
     burrow: { every: 6, dur: 2.4, speedMul: 1.7 },
-    V: { spr: 'zambela', name: 'Zambela Fujona', desc: 'De vez em quando foge pra Itália: some, fica intocável e reaparece mais adiante.' },
-    R: { spr: 'dilmae', name: 'Dilmãe Pedalada', desc: 'Dá pedaladas fiscais: some das contas, fica intocável e reaparece mais adiante.' },
+    V: { spr: 'zambela', name: 'Zambela Fujona', desc: 'Fuga para a Itália: de vez em quando dispara, some, fica intocável e reaparece mais adiante.',
+      poder: 'fuga', pwName: 'Fuga para a Itália' },
+    R: { spr: 'dilmae', name: 'Dilmãe Pedalada', desc: 'Pedalada Fiscal: sai pedalando, some das contas, fica intocável e reaparece mais adiante.',
+      poder: 'pedalada', pwName: 'Pedalada Fiscal' },
     tip: 'Ataque quando ela volta. A {s:watch} acha até quem sumiu.',
   },
   bulwark: { aquatic: true,
@@ -66,27 +77,31 @@ DATA.ENEMIES = {
     dmg: [5, 9], rate: 1.1, size: 12,
     frontShield: 0.8,
     V: { spr: 'boiada', name: 'Passador de Boiada', desc: 'Marcha atrás do boi, que segura tudo o que vem de frente.', tip: 'Torres atrás dele, {t:mage}, {t:artillery} e {tropa} ignoram o boi.' },
-    R: { spr: 'taxad', name: 'Taxad', desc: 'Marcha atrás do Leão do Imposto, que segura tudo o que vem de frente.', tip: 'Torres atrás dele, {t:mage}, {t:artillery} e {tropa} ignoram o leão.' },
+    R: { spr: 'taxad', name: 'Taxad', desc: 'Leão da Receita: marcha atrás do leão, que segura tudo o que vem de frente. Cai taxando.', tip: 'Torres atrás dele, {t:mage}, {t:artillery} e {tropa} ignoram o leão.',
+      poder: 'leao', pwName: 'Leão da Receita' },
   },
   saboteur: { aquatic: true,
     hp: 75, speed: 56, armor: 0, mres: 0.3, gold: 14, lives: 1,
     dmg: [2, 5], rate: 0.9, size: 10,
     sabotage: { r: 85, dur: 5, cd: 9 },
-    V: { spr: 'damaris', name: 'Damaris da Goiabeira', desc: 'Pinta as torres em volta de azul e de rosa. Pintada, a torre para.', tip: 'Mate-a rápido ou segure com {tropa}: bloqueada ela não pinta.' },
+    V: { spr: 'damaris', name: 'Damaris da Goiabeira', desc: 'Menino veste azul: pinta as torres em volta de azul e de rosa. Pintada, a torre para.', tip: 'Mate-a rápido ou segure com {tropa}: bloqueada ela não pinta.',
+      poder: 'menino', pwName: 'Menino Veste Azul' },
     R: { spr: 'pelego', name: 'Pelego da Greve', desc: 'Apita e as torres em volta entram em greve.', tip: 'Mate-o rápido ou segure com {tropa}: bloqueado ele não apita.' },
   },
   specter: { spr: 'lyra',
     name: 'Lyra Secreto', hp: 120, speed: 42, armor: 0, mres: 0.5, gold: 18, lives: 1,
     dmg: [4, 8], rate: 1.0, size: 11,
     stealth: true,
-    desc: 'Do Centrão. Ninguém vê, ninguém sabe, ninguém assina: invisível para as torres. Na tempestade de fake news, corre ainda mais.',
+    desc: 'Orçamento Secreto: ninguém vê, ninguém assina, e ele fica invisível para as torres. Na tempestade, corre mais.',
+    poder: 'secreto', pwName: 'Orçamento Secreto',
     tip: '{O:banner} e os {tropa} por perto o revelam. Dano em área sempre acerta.',
   },
   brood: {
     hp: 420, speed: 22, armor: 0.5, mres: 0, gold: 28, lives: 2,
     dmg: [10, 16], rate: 1.3, size: 17,
     split: { type: 'scorpling', n: 5 },
-    V: { spr: 'carluxo', name: 'Carluxo dos Robôs', desc: 'Carrega um notebook cheio de robôs. Ao cair, solta cinco.', tip: 'Tenha dano em área por perto para os robôs.' },
+    V: { spr: 'carluxo', name: 'Carluxo dos Robôs', desc: 'Gabinete do Ódio: carrega um notebook cheio de robôs. Ao cair, solta cinco.', tip: 'Tenha dano em área por perto para os robôs.',
+      poder: 'odio', pwName: 'Gabinete do Ódio' },
     R: { spr: 'busao', name: 'Busão da Caravana', desc: 'Ônibus fretado lotado. Ao parar, desce a excursão inteira.', tip: 'Tenha dano em área por perto para a excursão.' },
   },
   scorpling: {
@@ -120,14 +135,17 @@ DATA.ENEMIES = {
     name: 'Cacique do Centrão', hp: 3000, speed: 22, armor: 0.45, mres: 0.25, gold: 250, lives: 10,
     dmg: [40, 60], rate: 1.6, size: 24, big: true, boss: true, aoe: 45,
     summon: { type: 'raider', n: 3, cd: 11 },
-    desc: 'Manda na pauta: pisa em área e chama reforços de qualquer lado que pague mais.',
-    tip: 'Mate os reforços rápido e segure-o longe da rampa.',
+    desc: 'Pisa em área e chama reforços. Banco Vorcash: de tempos em tempos paga CDB de 140% e cura a turma em volta.',
+    tip: 'Mate os reforços rápido e segure-o longe da rampa: sem turma por perto, o CDB não rende.',
+    poder: 'vorcash', pwName: 'Banco Vorcash', pw: { cd: 14, r: 110, amt: 18 },
   },
   worm: {
     hp: 5000, speed: 15, armor: 0.35, mres: 0.3, gold: 600, lives: 20,
     size: 30, big: true, boss: true, unblockable: true, trample: { dmg: 30, r: 34 },
     wormBurrow: { every: 14, dur: 3.2, spawn: 'beetle', n: 3 },
-    V: { spr: 'capitao_moto', name: 'Capitão Mito na Motociata', desc: 'Montado na moto gigante, ninguém segura. De tempos em tempos some e volta com a turma da fuga.' },
+    V: { spr: 'capitao_moto', name: 'Capitão Mito na Motociata', desc: 'Na moto gigante, some e volta com a turma da fuga. Joias da Arábia: ergue um escudo que corta metade do dano.',
+      tip: 'Não pode ser bloqueado. Guarde a Operação da PF para quando as joias somem.',
+      poder: 'joias', pwName: 'Joias da Arábia', pw: { cd: 16, dur: 2.5, cut: 0.5 } },
     R: { spr: 'janja_trio', name: 'Janjinha no Trio Elétrico', desc: 'Em cima do trio elétrico da comitiva, ninguém segura. De tempos em tempos sai do ar e volta com a turma da pedalada.' },
     tip: 'Não pode ser bloqueado. Dano máximo e Operação da PF.',
   },
@@ -145,27 +163,36 @@ DATA.ENEMIES = {
     // entra com recurso duas vezes (66% e 33% da vida): some, volta pela estrada e chama a turma; perto dele as torres
     // atiram mais devagar (o mesmo motor do antigo Coracao da Fumaca)
     phases: [0.66, 0.33], smokeBack: 140, smokeSpawn: { types: ['raider', 'jackal', 'nomad'], n: 8 }, choke: { r: 140, rate: 1.4 },
-    V: { spr: 'zeroum_chefe', name: 'Zero-Um, o Candidato', desc: 'O filho mais velho quer a faixa que foi do pai. Perto dele, as torres travam de medo do processo.' },
+    V: { spr: 'zeroum_chefe', name: 'Zero-Um, o Candidato', desc: 'Quer a faixa do pai e trava as torres perto. Rachadinha: de tempos em tempos leva 10% da sua verba.',
+      tip: 'Entra com recurso duas vezes e trava as torres perto. Gaste a verba: a cada recurso ele leva 10%.',
+      poder: 'rachadinha', pwName: 'Rachadinha', pw: { cd: 15, pct: 0.1, min: 10, max: 150 } },
     R: { spr: 'lulala_chefe', name: 'Lulalá, o Candidato', desc: 'O Barba quer o quarto mandato. Perto dele, as torres travam de saudade.' },
     tip: 'Duas vezes ele entra com recurso: some e volta pela estrada com a turma. Perto dele, as torres atiram mais devagar.',
   },
 };
 
 // lado da chapa rival: copia nome, descricao e dica do lado da vez para o topo de cada adversario
+// poder do escandalo: poder (id lido pelo game.js como e.T.poder), pwName (nome no bestiario) e pw (numeros); a
+// variante da vez traz o seu, e sem ele vale o comum do topo (Lyra, Cacique), guardado na primeira vez
 DATA.setRival = side => {
   DATA.RIVAL = side;
   for (const k in DATA.ENEMIES) {
     const E = DATA.ENEMIES[k];
     if (E.tipAll === undefined) E.tipAll = E.tip || '';
+    if (E.poderAll === undefined) { E.poderAll = E.poder || null; E.pwAll = E.pw || null; E.pwNameAll = E.pwName || null; }
     const S = E[side];
     if (!S) continue;
     E.name = S.name; E.desc = S.desc; E.tip = S.tip || E.tipAll; E.spr = S.spr;
+    E.poder = S.poder || E.poderAll; E.pw = S.pw || E.pwAll; E.pwName = S.pwName || E.pwNameAll;
   }
 };
 DATA.setRival('V');
 
 // ---------------------------------------------------------------- TORRES
 // ordem em que aparecem no jogo (e nos menus)
+// tamanho das ondas: 0,7 = 30% menos adversarios comuns, cada um com mais vida e verba (game.js); chefes iguais
+DATA.HORDA = 0.7;
+
 DATA.TOWER_ORDER = ['archer', 'barracks', 'mage', 'artillery', 'cistern', 'windmill', 'banner', 'market'];
 DATA.START_TOWERS = ['archer', 'barracks'];
 // obra: segundos para construir e para evoluir (a torre fica parada enquanto isso)
@@ -565,9 +592,9 @@ DATA.CHARM = { max: 100, gain: 3, big: 6, boss: 25,
 DATA.UPGRADE_COST = [1, 2, 2];
 DATA.UPGRADES = {
   archer: { name: '{t:archer}', icon: 'archer', list: [
-    { name: 'Guichê Alto', desc: '+10% de alcance.', V: { name: 'Pé Mais Alto' } },
-    { name: 'Envelope Recheado', desc: '+15% de dano.', V: { name: 'Laranja Graúda' } },
-    { name: 'Fila Rápida', desc: '+12% de velocidade de ataque.', V: { name: 'Colheita Rápida' } },
+    { name: 'Guichê Alto', desc: '+10% de alcance.', V: { name: 'Pé Mais Alto' }, R: { name: 'Agência Alta' } },
+    { name: 'Envelope Recheado', desc: '+15% de dano.', V: { name: 'Laranja Graúda' }, R: { name: 'Carta Registrada' } },
+    { name: 'Fila Rápida', desc: '+12% de velocidade de ataque.', V: { name: 'Colheita Rápida' }, R: { name: 'Entrega Expressa' } },
   ] },
   mage: { name: '{t:mage}', icon: 'mage', list: [
     { name: 'Quilate Puro', desc: '+10% de dano {de:mage}.', R: { name: 'Picanha Nobre' } },
@@ -591,8 +618,8 @@ DATA.UPGRADES = {
   ] },
   cmd: { name: '{t:banner} e {t:market}', icon: 'banner', list: [
     { name: 'Relator Amigo', desc: '{t:banner}: +5% de bônus de dano.', V: { name: 'Engajamento Orgânico' } },
-    { name: 'Taxa de Administração', desc: '{t:market}: +20% de verba por onda.', R: { name: 'Taxa sobre a Taxa' } },
-    { name: 'Caixa Dois', desc: '+50 de verba inicial em toda fase.' },
+    { name: 'Taxa de Administração', desc: '{t:market}: +20% de verba por onda.', V: { name: 'Pix Turbinado' }, R: { name: 'Arrecadação Extra' } },
+    { name: 'Fundo de Campanha', desc: '+50 de verba inicial em toda fase.' },
   ] },
   charm: { name: 'Delação', icon: 'charm', list: [
     { name: 'Delator Falante', desc: '+25% de Delação em todo adversário derrotado.' },
@@ -732,7 +759,7 @@ const LV_BASE = [
     ],
   },
   {
-    name: 'Temporal no Rio Negro', theme: 'storm', gold: 680, goldMul: 1.15, lives: 20, gap: 17, seed: 71,
+    name: 'Temporal no Rio Negro', theme: 'storm', gold: 680, goldMul: 1.15, lives: 20, gap: 17, seed: 71, hpMul: 1.1,
     desc: 'O temporal encurta a visão das torres. Algo invisível caminha na chuva.',
     unlock: 'market',
     storm: { first: 55, every: 80, dur: 16, warn: 6 },
@@ -960,12 +987,12 @@ DATA.LEVELS = [
     unlock: ['windmill', 'banner'],
     challenge: { name: 'Quórum baixo', desc: 'Apenas 5 votos.', rules: { lives: 5 } },
     waves: [...LV_BASE[3].waves, [['worm', 1, 0, 0, 0], ['raider', 10, 0.9, 4], ['jackal', 8, 0.6, 12]]] }),
-  Object.assign(geo(5), { name: 'Praça dos Três Poderes', theme: 'storm', gold: 680, goldMul: 1.15, lives: 20, gap: 17, seed: 71,
+  Object.assign(geo(5), { name: 'Praça dos Três Poderes', theme: 'storm', gold: 680, goldMul: 1.15, lives: 20, gap: 17, seed: 71, hpMul: 1.1,
     desc: 'Pombos, bandeirão e uma tempestade de fake news que encurta a visão das torres.',
     storm: LV_BASE[5].storm,
     challenge: { name: 'Fake news sem fim', desc: 'As tempestades chegam com o dobro da frequência.', rules: { stormMul: 2 } },
     waves: LV_BASE[5].waves }),
-  Object.assign(geo(11), { name: 'Rampa do Planalto', theme: 'tepui', gold: 1200, goldMul: 1.45, lives: 20, gap: 18, seed: 131, hpMul: 0.8, bossHp: 0.4, bossNight: LV_BASE[11].bossNight,
+  Object.assign(geo(11), { name: 'Rampa do Planalto', theme: 'tepui', gold: 1200, goldMul: 1.45, lives: 20, gap: 18, seed: 131, hpMul: 0.95, bossHp: 0.4, bossNight: LV_BASE[11].bossNight,
     desc: 'A última subida. O candidato rival vem em pessoa, com recurso e tudo.',
     challenge: { name: 'Sem herói', desc: 'Enfrente o candidato sem herói.', rules: { noHero: true } },
     waves: [...LV_BASE[7].waves.filter(w => !w.some(g => g[0] === 'ifrit')), [['heart', 1, 0, 0, 0], ['brute', 4, 2, 6, -1], ['raider', 12, 0.8, 8, -1]]] }),
@@ -986,58 +1013,90 @@ DATA.WORLD = [
 // em cada vaga, so mudam nome, textos e arte (folhas em js/sprites_meta.js para a V e js/sprites_meta_r.js para a R).
 // art: artigo do nome curto (o/a/os/as) para os textos com marcadores ({o:archer}, {de:mage}...).
 DATA.CHAPA_TORRES = {
+  // as torres do jogador sao simbolos simpaticos do proprio lado; os escandalos ficam com a turma adversaria
   V: {
     tropa: 'assessores',
-    archer: { name: 'Laranjal', short: 'Laranjal', art: 'o', desc: 'Laranjas arremessadas do pé, uma atrás da outra. Acerta voadores.' },
-    mage: { name: 'Joias da Arábia', short: 'Joias', art: 'as' },
-    artillery: { name: 'Leite Condensado', short: 'Leite Condensado', art: 'o', desc: 'Latas de leite condensado que estouram em área. Não atinge voadores.' },
-    barracks: { name: 'Rachadinha', short: 'Rachadinha', art: 'a' },
-    cistern: { name: 'Lava a Jato', short: 'Lava a Jato', art: 'o' },
-    windmill: { name: 'Central do Zap', short: 'Zap', art: 'o' },
+    archer: { name: 'Pomar do Agro', short: 'Pomar', art: 'o', desc: 'O agro é pop: laranjas arremessadas do pé, uma atrás da outra. Acerta voadores.' },
+    mage: { name: 'Tesouro Verde-Amarelo', short: 'Tesouro', art: 'o', desc: 'Brilho de pedra preciosa brasileira que ignora couraça. Estoura a partir do nível 2; no 3, cada terceiro disparo é um Diamante.' },
+    artillery: { name: 'Pão com Leite Condensado', short: 'Leite Condensado', art: 'o', desc: 'O café da manhã do povo: latas de leite condensado que estouram em área. Não atinge voadores.' },
+    barracks: { name: 'Gabinete Patriota', short: 'Gabinete', art: 'o', desc: 'Gabinete que manda 3 assessores leais para bloquear o caminho.' },
+    cistern: { name: 'Lava a Jato', short: 'Lava a Jato', art: 'o', desc: 'Jatos de alta pressão que lavam o esquema: molham e retardam. Molhados sofrem mais com o Tesouro e choques.' },
+    windmill: { name: 'Grupo do Zap da Família', short: 'Zap', art: 'o', desc: 'Corrente de bom-dia encaminhada que empurra os adversários de volta. Dano dobrado em voadores.' },
     banner: { name: 'Live do Cercadinho', short: 'Live', art: 'a', desc: 'Não ataca. O cercadinho anima as torres ao redor e revela quem age escondido.' },
-    market: { name: 'Banco Vorcash', short: 'Vorcash', art: 'o' },
+    market: { name: 'Central do Pix', short: 'Pix', art: 'o', desc: 'Não ataca. O Pix cai na conta sempre que uma onda começa.' },
   },
   R: {
     tropa: 'militantes',
-    archer: { name: 'Mensalinho', short: 'Mensalinho', art: 'o' },
+    archer: { name: 'Carta ao Povo Brasileiro', short: 'Carta ao Povo', art: 'a', desc: 'Cartas ao povo lançadas do guichê, uma atrás da outra. Acerta voadores.' },
     mage: { name: 'Churrascão da Picanha', short: 'Churrascão', art: 'o', desc: 'Espetos de picanha em brasa que ignoram couraça. Estoura a partir do nível 2; no 3, cada terceiro espeto é uma Picanha Premium.' },
-    artillery: { name: 'Petrolão', short: 'Petrolão', art: 'o' },
+    artillery: { name: 'Pré-Sal', short: 'Pré-Sal', art: 'o', desc: 'O petróleo é nosso: barris que estouram em área. Não atinge voadores.' },
     barracks: { name: 'Sindicato', short: 'Sindicato', art: 'o', desc: 'Sede do sindicato que manda 3 militantes de faixa e apito para bloquear o caminho.' },
-    cistern: { name: 'Pedalinho do Sítio', short: 'Pedalinho', art: 'o', desc: 'Pedalinhos do lago do sítio que esguicham água: molham e retardam. Molhados sofrem mais com brasa e choques.' },
+    cistern: { name: 'Domingo no Sítio', short: 'Sítio', art: 'o', desc: 'Pedalinhos do lago do sítio que esguicham água: molham e retardam. Molhados sofrem mais com brasa e choques.' },
     windmill: { name: 'Carro de Som do Comício', short: 'Carro de Som', art: 'o', desc: 'Discurso no último volume que empurra os adversários de volta. Dano dobrado em voadores.' },
-    banner: { name: 'CPI', short: 'CPI', art: 'a' },
-    market: { name: 'Taxa das Blusinhas', short: 'Blusinhas', art: 'as', desc: 'Não ataca. Taxa cada pacote que chega: rende verba sempre que uma onda começa.' },
+    banner: { name: 'CPI', short: 'CPI', art: 'a', desc: 'Não ataca. Investiga: fortalece as torres ao redor e revela quem age escondido.' },
+    market: { name: 'Indústria Nacional', short: 'Indústria', art: 'a', desc: 'Não ataca. A alfândega protege a indústria nacional e rende verba sempre que uma onda começa.' },
   },
 };
-// especializacoes que mudam de cara numa chapa: nome, descricao e habilidades (por id)
+// especializacoes de cada chapa: nome, descricao e habilidades (por id); as que nao aparecem usam o texto de base
 DATA.CHAPA_SPECS = {
   V: {
-    ballista: { name: 'Laranjão', desc: 'Caixotes de laranja pesados que atravessam até 3 adversários em linha.', ab: {
+    ballista: { name: 'Caixote do Agro', desc: 'Caixotes de laranja pesados que atravessam até 3 adversários em linha.', ab: {
       explosive: ['Suco Estourado', 'A cada 4 disparos, o caixote estoura em área.'],
-      eagle: ['Laranja Premiada', 'Chance de acerto crítico com dano triplo.'] } },
-    blowgun: { name: 'Candidatura Laranja', desc: 'Sementes cuspidas rápido. O azedo gruda e ignora couraça.', ab: {
+      eagle: ['Safra Recorde', 'Chance de acerto crítico com dano triplo.'] } },
+    blowgun: { name: 'Mascote do Agro', desc: 'O mascote cospe sementes rápido. O azedo gruda e ignora couraça.', ab: {
       cloud: ['Nuvem de Bagaço', 'Joga uma nuvem de bagaço que fere e atrasa quem estiver dentro.'],
       corrosive: ['Ácido Cítrico', 'O azedo derrete a couraça e fica mais forte.'] } },
-    mortar: { name: 'Compra de 15 Milhões', desc: 'Latas enormes, de longo alcance, pelo preço de 15 milhões.', ab: {
+    sun: { name: 'Sol do Cerrado', desc: 'Reflexo contínuo do tesouro ao sol: esquenta quanto mais tempo mira.', ab: {
+      flash: ['Clarão de Diamante', 'Um clarão que atordoa todos em volta do alvo.'],
+      burn: ['Ouro Quente', 'O reflexo incendeia o alvo (molhados não pegam fogo).'] } },
+    mortar: { name: 'Estoque do Quartel', desc: 'Latas enormes, de longo alcance, direto do estoque.', ab: {
       cluster: ['Chuva de Latinhas', 'A cada 3 disparos, a lata solta latinhas menores.'],
       barrel: ['Calda Quente', 'Espalha calda quente no chão por alguns segundos.'] } },
     seismic: { name: 'Batedeira Industrial', desc: 'Bate o chão sem parar: dano e lentidão em todos ao redor.', ab: {
       tremor: ['Bate Forte', 'Chance de atordoar cada adversário atingido.'],
       chasm: ['Forma de Pudim', 'Abre uma forma de pudim e engole um adversário comum.'] } },
+    lancers: { name: 'Chefe de Gabinete', desc: 'Assessores de elite, de terno e crachá, que chegam marchando.', ab: {
+      charge: ['Ordem Unida', 'O primeiro golpe em cada adversário causa dano extra e atordoa.'],
+      shield: ['Colete Patriota', 'Mais couraça e mais vida.'] } },
+    monks: { name: 'Equipe Discreta', desc: 'Ninguém vê, ninguém pega: os golpes passam direto por eles.', ab: {
+      heal: ['Kit Primeiros Socorros', 'Curam a si mesmos e aos aliados próximos.'],
+      palm: ['Pancada de Pasta', 'Golpe de pasta 007 que fere todos ao redor.'] } },
+    geyser: { name: 'Jato de Pressão', desc: 'Jato de alta pressão: dano alto, empurra e molha.', ab: {
+      chill: ['Água Gelada', 'Chance de congelar alvos molhados.'],
+      burst: ['Mandado de Busca', 'Um jato estoura sob o adversário mais forte.'] } },
+    tornado: { name: 'Bom Dia em Massa', desc: 'Correntes de bom-dia em massa que arrastam grupos inteiros para trás.', ab: {
+      twister: ['Viralizou', 'Solta um redemoinho de mensagens que volta pelo caminho atordoando quem toca.'],
+      skyward: ['Derruba Avião', 'Derruba voadores: no chão, assessores e latas os alcançam.'] } },
+    sandblast: { name: 'Corrente do Zap', desc: 'Correntes rápidas de "repassem para todos" que ferem e atrapalham.', ab: {
+      shred: ['Áudio de 8 Minutos', 'Lixa a couraça de quem é obrigado a ouvir.'],
+      blind: ['Figurinha nos Olhos', 'Cega: sem disparos, curas ou sabotagens, e golpes mais fracos.'] } },
     drums: { name: 'Live de Quinta', desc: 'Aura maior, mais dano e ataques mais rápidos para as torres vizinhas.', ab: {
       warcry: ['Talkei?', 'A cada 14 s, as torres na aura atacam 40% mais rápido.'],
       march: ['Cercadinho Lotado', 'Assessores e herói na aura causam mais dano.'] } },
     watch: { name: 'Câmera da Live', desc: 'Aura enorme que revela invisíveis e até quem sumiu.', ab: {
       mark: ['Exposed na Live', 'Expõe o adversário mais forte na aura: ele sofre mais dano.'],
       bounty: ['Pix do Apoiador', 'Adversários derrotados na aura rendem mais verba.'] } },
+    bazaar: { name: 'Pix do Agro', desc: 'Mais verba por onda, e até o Centrão aparece para ajudar.', ab: {
+      mercs: ['Centrão de Aluguel', 'O Centrão atende os dois lados: um deputado luta do seu lado por 18 s.'],
+      caravan: ['Pix Agendado', 'Verba extra a cada onda.'] } },
+    treasury: { name: 'Poupança Patriota', desc: 'Renda fixa e juros sobre a verba guardada a cada onda.', ab: {
+      compound: ['Juros do Cofrinho', 'Juros maiores sobre a verba guardada.'],
+      vault: ['Cofrinho Verde-Amarelo', 'Teto de juros mais alto.'] } },
   },
   R: {
+    ballista: { name: 'Malote', desc: 'Malotes pesados que atravessam até 3 adversários em linha.', ab: {
+      explosive: ['Malote Estourado', 'A cada 4 disparos, o malote estoura em área.'],
+      eagle: ['Carimbo Certeiro', 'Chance de acerto crítico com dano triplo.'] } },
+    blowgun: { name: 'Panfletagem', desc: 'Santinhos lançados rápido. A tinta gruda e ignora couraça.', ab: {
+      cloud: ['Chuva de Santinhos', 'Joga uma nuvem de santinhos que fere e atrasa quem estiver dentro.'],
+      corrosive: ['Tinta Fresca', 'A tinta derrete a couraça e fica mais forte.'] } },
     lightning: { name: 'Rodízio', desc: 'O espeto passa de prato em prato e salta entre 4 adversários. Devastador contra molhados.', ab: {
       overload: ['Brasa Viva', 'Cada salto pode atordoar o alvo.'],
       storm: ['Picanha pra Todos', 'Uma nuvem de fumaça despeja espetos na área.'] } },
     sun: { name: 'Maçarico do Churrasqueiro', desc: 'Chama contínua do maçarico: esquenta quanto mais tempo mira.', ab: {
       flash: ['Cervejinha Gelada', 'Uma rodada gelada que deixa todos em volta do alvo parados.'],
       burn: ['Bem Passado', 'A chama incendeia o alvo (molhados não pegam fogo).'] } },
+    mortar: { name: 'Refinaria Nacional', desc: 'Barris enormes, de longo alcance.' },
     lancers: { name: 'Diretoria do Sindicato', desc: 'Militantes de elite, de colete e apito, que chegam fazendo piquete.', ab: {
       charge: ['Piquete', 'O primeiro golpe em cada adversário causa dano extra e atordoa.'],
       shield: ['Estabilidade no Emprego', 'Mais couraça e mais vida.'] } },
@@ -1045,20 +1104,20 @@ DATA.CHAPA_SPECS = {
       heal: ['Licença Remunerada', 'Curam a si mesmos e aos aliados próximos.'],
       palm: ['Bandeirada', 'Golpe de bandeira que fere todos ao redor.'] } },
     fountain: { name: 'Lago do Sítio', desc: 'Arcos largos de água do lago que molham grupos inteiros.', ab: {
-      spring: ['Domingo no Sítio', 'Cura os militantes e o herói dentro do alcance.'],
+      spring: ['Domingo de Sol', 'Cura os militantes e o herói dentro do alcance.'],
       mire: ['Barro do Sítio', 'Espalha barro no caminho: retarda e molha.'] } },
-    geyser: { name: 'Pedalada Fiscal', desc: 'Pedalada de alta pressão: dano alto, empurra e molha.', ab: {
+    geyser: { name: 'Pedalinho Turbo', desc: 'Jato de alta pressão movido a pedal: dano alto, empurra e molha.', ab: {
       chill: ['Água de Coco Gelada', 'Chance de congelar alvos molhados.'],
-      burst: ['Pedalada Turbo', 'Um jato estoura sob o adversário mais forte.'] } },
+      burst: ['Esguicho Turbo', 'Um jato estoura sob o adversário mais forte.'] } },
     tornado: { name: 'Comício na Praça', desc: 'Discurso em massa que arrasta grupos inteiros para trás.', ab: {
       twister: ['Discurso de 3 Horas', 'Solta uma roda de ouvintes que volta pelo caminho e faz dormir quem toca.'],
       skyward: ['Microfonia', 'Derruba voadores: no chão, militantes e barris os alcançam.'] } },
     sandblast: { name: 'Jingle Chiclete', desc: 'Um jingle que gruda na cabeça: fere e atrapalha.', ab: {
       shred: ['Companheiros e Companheiras', 'Lixa a couraça de quem é obrigado a ouvir o discurso.'],
       blind: ['Volume no Máximo', 'Ensurdece: sem disparos, curas ou sabotagens, e golpes mais fracos.'] } },
-    bazaar: { name: 'Receita do Taxad', desc: 'Mais verba por onda, e até o Centrão aparece para ajudar.', ab: {
+    bazaar: { name: 'Receita Federal', desc: 'Mais verba por onda, e até o Centrão aparece para ajudar.', ab: {
       mercs: ['Centrão de Aluguel', 'O Centrão atende os dois lados: um deputado luta do seu lado por 18 s.'],
-      caravan: ['Taxou!', 'Verba extra a cada onda.'] } },
+      caravan: ['Imposto dos Super-Ricos', 'Verba extra a cada onda.'] } },
     treasury: { name: 'Arcabouço Fiscal', desc: 'Renda fixa e juros sobre a verba guardada a cada onda. O arcabouço segura.', ab: {
       compound: ['Arrecadação Recorde', 'Juros maiores sobre a verba guardada.'],
       vault: ['Teto Flexível', 'Teto de juros mais alto.'] } },

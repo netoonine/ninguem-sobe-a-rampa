@@ -356,6 +356,25 @@ A.pfDrop = (c, f, k) => {
     A.shadow(c, U.lerp(p.sx, p.tx, k), U.lerp(p.sy + 18, p.ty + 24, k), 6, 2.4, 0.22);
     c.save();
     c.translate(p.x, p.y);
+    if (p.skey === 'mensalao') {
+      // Mensalao (Ze Guerreiro): envelope pardo recheado, com notas aparecendo pela aba
+      c.rotate(Math.sin(p.ang * 0.6) * 0.45);
+      note(c, -2.5, -6.5, 11, 6, -0.25, 1);
+      note(c, 3, -7, 11, 6, 0.2, 1);
+      A.rrect(c, -9, -6, 18, 12, 1.6, '#e9d29a', '#7a5a2a', 1.3);
+      c.strokeStyle = '#a07a3a'; c.lineWidth = 1; c.lineJoin = 'round';
+      c.beginPath(); c.moveTo(-9, -6); c.lineTo(0, 1); c.lineTo(9, -6); c.stroke();
+      A.circ(c, 0, 1, 1.8, '#c8323a');
+      c.restore();
+      c.save();
+      for (let i = 1; i <= 2; i++) {
+        const kk = Math.max(0, k - i * 0.09);
+        c.globalAlpha = 0.7 - i * 0.22;
+        note(c, U.lerp(p.sx, p.tx, kk), U.lerp(p.sy, p.ty, kk) - p.arc * 4 * kk * (1 - kk), 8, 4.5, p.ang * 0.8 + i, Math.cos(p.ang * 2 + i));
+      }
+      c.restore();
+      return;
+    }
     if (p.skey === 'pelego') {
       c.rotate(Math.sin(p.ang) * 0.5);
       A.line(c, 0, 1, 0, 13, '#8a5a32', 2.2);
@@ -385,6 +404,8 @@ A.pfDrop = (c, f, k) => {
   // impacto da sabotagem: tinta rosa espirrando na torre, ou a placa fincando com poeirinha
   A.fxSabHit = (c, f, k) => {
     const s = f.x * 0.3 + f.y * 0.7, e = eo(Math.min(1, k * 2.5));
+    // Mensalao: o envelope abre na torre numa chuvinha de notas e moedas
+    if (f.skey === 'mensalao') { A.fxCash(c, { x: f.x, y: f.y + 14, r: 30 }, k); return; }
     c.save();
     if (f.skey === 'pelego') {
       const x = f.x + 20, y = f.y + 38;
@@ -430,7 +451,18 @@ A.pfDrop = (c, f, k) => {
   A.sabMark = (c, tw, t, kind, age, rem) => {
     c.save();
     c.globalAlpha = Math.min(1, rem / 0.5, age * 6);
-    if (kind === 'pelego') {
+    if (kind === 'mensalao') {
+      // torre comprada: o envelope fica pendurado na frente, balancando, com as notas para fora
+      c.translate(tw.x + 16, tw.y - 26);
+      c.rotate(Math.sin(t * 3 + tw.id) * 0.12 - 0.1);
+      A.line(c, 0, -14, 0, -7, '#7a5a2a', 1.2);
+      note(c, -3, -7, 12, 6.5, -0.3 + Math.sin(t * 5 + tw.id) * 0.08, 1);
+      note(c, 3.5, -8, 12, 6.5, 0.25, 1);
+      A.rrect(c, -10, -6, 20, 13, 1.8, '#e9d29a', '#7a5a2a', 1.4);
+      c.strokeStyle = '#a07a3a'; c.lineWidth = 1.1; c.lineJoin = 'round';
+      c.beginPath(); c.moveTo(-10, -6); c.lineTo(0, 1.5); c.lineTo(10, -6); c.stroke();
+      A.circ(c, 0, 1.5, 2, '#c8323a');
+    } else if (kind === 'pelego') {
       c.translate(tw.x + 20, tw.y + 14);
       A.shadow(c, 0, 1, 7, 2.5, 0.25);
       c.rotate(Math.sin(t * 2.4 + tw.id) * 0.08 - 0.06);
@@ -791,6 +823,445 @@ A.pfDrop = (c, f, k) => {
         c.fillStyle = i % 2 ? '#ffffff' : '#bff0ff';
         star4(c, f.x + Math.cos(a) * d, f.y - 6 + Math.sin(a) * d * 0.55 - 12 * ie, (3.8 * (1 - ik) + 0.8) * tw);
       }
+    }
+    c.restore();
+  };
+
+  // ---------------------------------------------------------------- poderes dos escandalos (adversarios)
+  // Cada adversario da chapa rival mostra o proprio escandalo (DATA.ENEMIES[..].poder; mecanica no game.js).
+  // Mesmas regras: sorteio fixo (rnd), sem gradiente nos lacos, sem letra desenhada nos bonecos.
+  // contorno macio fechado (poca de oleo): n pontos com raio vezes ru(i), curvas pelos pontos medios
+  const softBlob = (c, x, y, rx, ry, n, ru) => {
+    c.beginPath();
+    const px = i => x + Math.cos((i % n) / n * U.TAU) * rx * ru(i % n), py = i => y + Math.sin((i % n) / n * U.TAU) * ry * ru(i % n);
+    c.moveTo((px(0) + px(1)) / 2, (py(0) + py(1)) / 2);
+    for (let i = 1; i <= n; i++) c.quadraticCurveTo(px(i), py(i), (px(i) + px(i + 1)) / 2, (py(i) + py(i + 1)) / 2);
+    c.closePath();
+  };
+  const SHEEN = ['#c59cff', '#7cc4ff', '#7fe8b0', '#ffe27a', '#ff9ccf'];
+  // Petrolao: mancha de oleo preto e brilhante na estrada, com o arco-iris do oleo girando devagar
+  A.fxOilSlick = (c, z, t, fade) => {
+    const s = z.x * 0.53 + z.y * 0.29, grow = eo(Math.min(1, z.t / 0.35));
+    const rx = z.r * (0.45 + 0.55 * grow), ry = rx * U.YS;
+    const ru = i => 0.8 + 0.3 * rnd(i, s);
+    c.save();
+    c.globalAlpha = fade;
+    A.ell(c, z.x + 2, z.y + 3, rx * 1.02, ry * 1.02, 'rgba(0,0,0,0.18)');
+    softBlob(c, z.x, z.y, rx, ry, 11, ru);
+    c.fillStyle = '#16141b'; c.fill();
+    c.lineWidth = 1.6; c.strokeStyle = 'rgba(8,6,12,0.9)'; c.stroke();
+    // gotinhas soltas em volta
+    for (let i = 0; i < 4; i++) {
+      const a = (i / 4) * U.TAU + 0.4 + rnd(i + 20, s) * 0.9, d = 1.05 + 0.2 * rnd(i + 30, s), rr = (2.2 + 2.4 * rnd(i + 40, s)) * grow;
+      A.ell(c, z.x + Math.cos(a) * rx * d, z.y + Math.sin(a) * ry * d, rr, rr * 0.7, '#16141b');
+    }
+    // arco-iris do oleo: faixas finas coloridas deslizando
+    c.lineCap = 'round';
+    for (let i = 0; i < 5; i++) {
+      const a0 = t * 0.35 * (i % 2 ? 1 : -1) + rnd(i + 50, s) * U.TAU, sc = 0.32 + 0.12 * i;
+      c.beginPath(); c.ellipse(z.x - rx * 0.08, z.y - ry * 0.06, rx * sc, ry * sc, 0, a0, a0 + 1.5 + rnd(i + 60, s));
+      c.strokeStyle = U.rgba(SHEEN[i], 0.45); c.lineWidth = 2.2 - i * 0.2; c.stroke();
+    }
+    // brilho de verniz
+    c.beginPath(); c.ellipse(z.x - rx * 0.2, z.y - ry * 0.3, rx * 0.42, ry * 0.32, 0, Math.PI * 1.08, Math.PI * 1.62);
+    c.strokeStyle = 'rgba(255,255,255,0.75)'; c.lineWidth = 2; c.stroke();
+    A.ell(c, z.x + rx * 0.32, z.y - ry * 0.18, 2.4, 1.4, 'rgba(255,255,255,0.8)');
+    // bolha estourando de vez em quando
+    const ph = (t * 0.9 + rnd(70, s)) % 1;
+    if (ph < 0.5) A.circ(c, z.x + (rnd(71, s) - 0.5) * rx, z.y + (rnd(72, s) - 0.5) * ry, 1 + ph * 4, null, 'rgba(200,190,255,0.6)', 1);
+    c.restore();
+  };
+  // barril de oleo caindo do jatinho, girando, com gotas pretas atras e a sombra crescendo no chao
+  A.fxOilBarrel = (c, p, t) => {
+    const k = Math.min(1, p.t / p.T);
+    A.shadow(c, p.tx, p.ty + 1, 4 + 7 * k, (4 + 7 * k) * 0.4, 0.15 + 0.2 * k);
+    c.save();
+    for (let i = 1; i <= 3; i++) {
+      c.globalAlpha = 0.8 - i * 0.2;
+      A.ell(c, p.x + Math.sin(i * 2.1) * 2, p.y - i * 7 * (0.4 + k), 1.8, 2.6, '#17161b');
+    }
+    c.globalAlpha = 1;
+    c.translate(p.x, p.y);
+    c.rotate(Math.sin(p.ang * 0.5) * 0.6);
+    c.scale(1.25, 1.25);
+    A.rrect(c, -5.5, -7, 11, 14, 2, '#2c2a34', OUT, 1.3);
+    A.rect(c, -5.5, -3.2, 11, 1.4, '#5c5a68');
+    A.rect(c, -5.5, 1.8, 11, 1.4, '#5c5a68');
+    A.ell(c, 0, -7, 5.5, 1.8, '#46444f', OUT, 1);
+    A.ell(c, -2.6, -0.5, 1, 4.6, 'rgba(255,255,255,0.28)');
+    A.ell(c, 1.5, -7.6, 1.1, 0.6, '#17161b');
+    c.restore();
+  };
+  // Verba da Rouanet: saquinho de pano amarrado caindo do corpo, com moedinhas pulando
+  const sack = (c, x, y, s, rot) => {
+    c.save(); c.translate(x, y); c.rotate(rot); c.scale(s, s);
+    A.ell(c, 0, 2.5, 7, 6.4, '#d8b26a', '#6e4a1c', 1.3);
+    A.poly(c, [[-2.8, -3.4], [-5.4, -8], [-1, -5.8], [0, -8.6], [1, -5.8], [5.4, -8], [2.8, -3.4]], '#d8b26a', '#6e4a1c', 1.1);
+    A.line(c, -3.6, -3.6, 3.6, -3.6, '#2e7d3a', 1.8);
+    A.ell(c, -3, 0.6, 1.4, 2.6, 'rgba(255,255,255,0.32)');
+    A.circ(c, 1, 3, 2.4, '#ffd23f', '#a07818', 0.8);
+    c.restore();
+  };
+  A.fxRouanetBag = (c, p, t) => {
+    const k = Math.min(1, p.t / p.T);
+    A.shadow(c, p.tx, p.ty + 1, 4 + 4 * k, 2 + 1.6 * k, 0.2);
+    sack(c, p.x, p.y, 1.05, Math.sin(p.ang * 0.7) * 0.4);
+  };
+
+  // papagaio de celular com tela verde-agua (Vaquinha do Pix)
+  const phone = (c, x, y, s, rot) => {
+    c.save(); c.translate(x, y); c.rotate(rot); c.scale(s, s);
+    A.rrect(c, -3.6, -6, 7.2, 12, 1.6, '#2b2d36', OUT, 1);
+    A.rrect(c, -2.7, -4.8, 5.4, 8.6, 0.8, '#7fe6d6');
+    // losango de pagamento na tela (forma simples, sem marca)
+    A.poly(c, [[0, -2.6], [1.8, -0.6], [0, 1.4], [-1.8, -0.6]], '#ffffff');
+    A.circ(c, 0, 4.9, 0.6, '#9aa0aa');
+    c.restore();
+  };
+  // sinal de % desenhado (aro + bolinhas + barra), sem fonte
+  const pctSign = (c, x, y, s, col) => {
+    c.save(); c.translate(x, y); c.scale(s, s);
+    c.lineCap = 'round';
+    c.strokeStyle = col; c.lineWidth = 1.5;
+    c.beginPath();
+    c.moveTo(-1.1, -2.3); c.arc(-2.2, -2.3, 1.1, 0, U.TAU);
+    c.moveTo(3.3, 2.3); c.arc(2.2, 2.3, 1.1, 0, U.TAU);
+    c.moveTo(2.8, -3.4); c.lineTo(-2.8, 3.4);
+    c.stroke();
+    c.restore();
+  };
+  // selo vermelho de "!" (o mesmo da tempestade de fake news)
+  const alarm = (c, x, y, r) => {
+    A.circ(c, x, y, r, '#e8423f', '#ffffff', 1.2);
+    A.line(c, x, y - r * 0.5, x, y + r * 0.1, '#ffffff', 1.6);
+    A.circ(c, x, y + r * 0.45, 0.85, '#ffffff');
+  };
+
+  // efeitos dos poderes (fx do game.js); devolve true quando desenhou
+  A.fxPoder = (c, f, k, g) => {
+    const s = f.x * 0.41 + f.y * 0.23, e = eo(k);
+    switch (f.kind) {
+      case 'oilSplat': {
+        // barril estourando no asfalto: respingos pretos voando e caindo
+        const r = f.r || 40;
+        c.save();
+        c.globalAlpha = 1 - k;
+        if (k < 0.3) A.ell(c, f.x, f.y, r * (0.3 + 1.6 * k), r * (0.3 + 1.6 * k) * U.YS, null, 'rgba(30,26,40,0.7)', 3 * (1 - k / 0.3) + 0.5);
+        for (let i = 0; i < 11; i++) {
+          const a = (i / 11) * U.TAU + rnd(i, s) * 0.5, d = r * (0.25 + 0.85 * e) * (0.6 + 0.4 * rnd(i + 11, s));
+          const h = Math.sin(Math.min(1, k * 1.3) * Math.PI) * (12 + 16 * rnd(i + 22, s));
+          const sz = (2.2 + 2 * rnd(i + 33, s)) * (1 - k * 0.4);
+          A.ell(c, f.x + Math.cos(a) * d, f.y + Math.sin(a) * d * U.YS - h, sz, sz * 0.8, '#17161b');
+          A.circ(c, f.x + Math.cos(a) * d - sz * 0.3, f.y + Math.sin(a) * d * U.YS - h - sz * 0.3, sz * 0.3, 'rgba(255,255,255,0.4)');
+        }
+        c.restore();
+        return true;
+      }
+      case 'rachadinha': {
+        // Rachadinha: notas saem do contador de verba (HUD, convertido para o mundo pela camera) e voam para o Zero-Um
+        const lv = typeof App !== 'undefined' ? App.lv : null;
+        const gp = (lv && lv.goldAt) || [174, 50];
+        const cam = typeof Cam !== 'undefined' && Cam.toWorld && typeof App !== 'undefined' && App.screen === 'level';
+        const z = cam ? Cam.z || 1 : 1;
+        const [hx, hy] = cam ? Cam.toWorld(gp[0], gp[1] + 30) : [gp[0], gp[1] + 30];
+        const alive = f.e && !f.e.dead && !f.e.reached;
+        const bx = alive ? f.e.x : f.x, by = (alive ? f.e.y : f.y) - 58;
+        const n = Math.min(10, 4 + Math.round((f.n || 0) / 18));
+        c.save();
+        for (let i = 0; i < n; i++) {
+          const q = U.clamp((k * 1.3 - i * 0.045) / 0.85, 0, 1);
+          if (q <= 0 || q >= 1) continue;
+          const m = q * q * (3 - 2 * q);
+          // arco suave entre o contador e o chefe, sem sair pelo alto da tela
+          const mx = (hx + bx) / 2 + (rnd(i, s) - 0.5) * 180, my = Math.max(hy + 40 / z, (hy + by) / 2 - 50 - rnd(i + 9, s) * 60);
+          const x = (1 - m) * (1 - m) * hx + 2 * (1 - m) * m * mx + m * m * bx;
+          const y = (1 - m) * (1 - m) * hy + 2 * (1 - m) * m * my + m * m * by;
+          c.globalAlpha = Math.min(1, q * 6, (1 - q) * 5);
+          note(c, x, y, 20 / Math.sqrt(z), 10.5 / Math.sqrt(z), q * 8 * (rnd(i + 3, s) - 0.5) + Math.sin(q * 12 + i) * 0.4, Math.cos(q * 18 + i * 1.7));
+          // luz propria: na fase de noite as notas nao somem no escuro
+          if (typeof Light !== 'undefined' && i % 2 === 0) Light.add(x, y, 46, '#e8ffd0', 0.55 * c.globalAlpha, 0.3);
+        }
+        // "-N" em vermelho logo abaixo do contador
+        if (k < 0.75) {
+          const [tx, ty] = cam ? Cam.toWorld(gp[0] + 14, gp[1] + 52 + k * 14) : [gp[0] + 14, gp[1] + 52 + k * 14];
+          c.globalAlpha = k > 0.55 ? (0.75 - k) / 0.2 : Math.min(1, k * 8);
+          A.text(c, '-' + f.n, tx, ty, 22 / z, '#ff6a5a', 'center', { family: typeof FONT_UI !== 'undefined' ? FONT_UI : undefined, weight: 900 });
+          if (typeof Light !== 'undefined') Light.add(tx, ty, 60 / z, '#ffd0c8', 0.7 * c.globalAlpha, 0.3);
+        }
+        // chegada: brilho e moedinhas no bolso do chefe
+        if (k > 0.6) {
+          const kk = (k - 0.6) / 0.4;
+          c.globalAlpha = 1 - kk;
+          for (let i = 0; i < 5; i++) {
+            const a = (i / 5) * U.TAU + kk * 2;
+            A.coin(c, bx + Math.cos(a) * (8 + 20 * kk), by + 10 + Math.sin(a) * (6 + 10 * kk) - 12 * kk, 3.4);
+          }
+        }
+        c.restore();
+        return true;
+      }
+      case 'vorcash': {
+        // Banco Vorcash: chuva de moedas e notas em cima da turma e o aro verde da cura
+        const r = f.r || 110;
+        c.save();
+        for (let i = 0; i < 2; i++) {
+          const kk = (k - i * 0.15) / 0.6;
+          if (kk <= 0 || kk >= 1) continue;
+          c.globalAlpha = 1 - kk;
+          A.ell(c, f.x, f.y, r * (0.25 + 0.75 * eo(kk)), r * (0.25 + 0.75 * eo(kk)) * U.YS, U.rgba('#c8ff6a', 0.08), i ? '#ffd54a' : '#c8ff6a', 3 * (1 - kk) + 1);
+        }
+        for (let i = 0; i < 18; i++) {
+          const q = U.clamp((k - rnd(i, s) * 0.45) / 0.5, 0, 1);
+          if (q <= 0 || q >= 1) continue;
+          const a = rnd(i + 18, s) * U.TAU, d = Math.sqrt(rnd(i + 36, s)) * r * 0.85;
+          const gx = f.x + Math.cos(a) * d, gy = f.y + Math.sin(a) * d * U.YS;
+          const y = gy - 150 * (1 - q * q) - 6;
+          c.globalAlpha = Math.min(1, (1 - q) * 6, q * 8);
+          if (i % 4 === 3) note(c, gx + Math.sin(q * 9 + i) * 5, y, 12, 6.5, Math.sin(q * 7 + i), Math.cos(q * 14 + i));
+          else A.coin(c, gx, y, 4.2);
+          if (q > 0.85) { c.globalAlpha = (1 - q) / 0.15; c.fillStyle = '#fff6c8'; star4(c, gx, gy - 6, 4); }
+        }
+        c.restore();
+        return true;
+      }
+      case 'rouanet': {
+        // o saco estoura: moedas pulando, cruzinhas verdes subindo e o aro pequeno da cura
+        const r = f.r || 55;
+        c.save();
+        c.globalAlpha = (1 - k) * 0.95;
+        A.ell(c, f.x, f.y, r * (0.3 + 0.7 * e), r * (0.3 + 0.7 * e) * U.YS, U.rgba('#c8ff6a', 0.16), '#b8ff5a', 3);
+        if (k < 0.35) sack(c, f.x, f.y - 6, 1.2 * (1 - k / 0.35 * 0.5), 0);
+        for (let i = 0; i < 6; i++) {
+          const a = -Math.PI / 2 + (i - 2.5) * 0.45, sp = 26 + 10 * rnd(i, s);
+          A.coin(c, f.x + Math.cos(a) * sp * e, f.y - 8 + Math.sin(a) * sp * e + 40 * k * k, 3.2);
+        }
+        for (let i = 0; i < 5; i++) {
+          const px = f.x + (rnd(i + 10, s) - 0.5) * r * 1.4, py = f.y - 8 - rnd(i + 20, s) * 14 - e * 26;
+          A.rect(c, px - 1.4, py - 4, 2.8, 8, '#7af06a');
+          A.rect(c, px - 4, py - 1.4, 8, 2.8, '#7af06a');
+        }
+        c.restore();
+        return true;
+      }
+      case 'taxou': {
+        // Leao da Receita: estalo de moedas pulando do corpo e o aro dourado
+        c.save();
+        if (k < 0.4) { c.globalAlpha = 1 - k / 0.4; A.ell(c, f.x, f.y, 10 + 34 * eo(k / 0.4), (10 + 34 * eo(k / 0.4)) * U.YS, null, '#ffd54a', 3); }
+        c.globalAlpha = k < 0.7 ? 1 : (1 - k) / 0.3;
+        for (let i = 0; i < 9; i++) {
+          const a = -Math.PI / 2 + (i - 4) * 0.36 + (rnd(i, s) - 0.5) * 0.3, sp = 34 + 22 * rnd(i + 9, s);
+          const x = f.x + Math.cos(a) * sp * k, y = f.y - 22 + Math.sin(a) * sp * k + 90 * k * k;
+          A.coin(c, x, Math.min(f.y + 4, y), 3.8);
+        }
+        c.restore();
+        return true;
+      }
+      case 'odio': {
+        // Gabinete do Odio: baloes cinza de mensagem e selos de "!" espirrando do notebook, com faisquinhas
+        c.save();
+        c.globalAlpha = k < 0.7 ? 1 : (1 - k) / 0.3;
+        for (let i = 0; i < 9; i++) {
+          const a = -Math.PI * (0.1 + 0.8 * (i / 8)) + (rnd(i, s) - 0.5) * 0.3, sp = 30 + 30 * rnd(i + 9, s);
+          const x = f.x + Math.cos(a) * sp * e, y = f.y - 26 + Math.sin(a) * sp * e * 0.9 - 16 * k;
+          if (i % 3 === 0) alarm(c, x, y, 5.5);
+          else bubble(c, x, y, 15, 10, '#d5d9e4', '#5a6074');
+        }
+        if (k < 0.5) {
+          c.globalAlpha = 1 - k / 0.5;
+          c.lineCap = 'round'; c.lineJoin = 'round';
+          for (let i = 0; i < 4; i++) {
+            const a = (i / 4) * U.TAU + 0.5, r0 = 10 + 20 * e;
+            c.beginPath();
+            c.moveTo(f.x + Math.cos(a) * r0, f.y - 22 + Math.sin(a) * r0 * 0.7);
+            c.lineTo(f.x + Math.cos(a + 0.25) * (r0 + 7), f.y - 22 + Math.sin(a + 0.25) * (r0 + 7) * 0.7);
+            c.lineTo(f.x + Math.cos(a - 0.05) * (r0 + 13), f.y - 22 + Math.sin(a - 0.05) * (r0 + 13) * 0.7);
+            c.strokeStyle = '#ff5a6a'; c.lineWidth = 2; c.stroke();
+          }
+        }
+        c.restore();
+        return true;
+      }
+      case 'secreto': {
+        // Orcamento Secreto: pasta parda abre, papeis saem voando e o carimbo vermelho bate
+        const pop = k < 0.18 ? U.easeOutBack(k / 0.18) : 1, x = f.x + 22, y = f.y - 58;
+        c.save();
+        c.globalAlpha = k < 0.75 ? 1 : (1 - k) / 0.25;
+        for (let i = 0; i < 6; i++) {
+          const a = -Math.PI * (0.15 + 0.7 * rnd(i, s)), sp = 18 + 28 * rnd(i + 6, s);
+          const kk = U.clamp((k - 0.12) / 0.7, 0, 1);
+          if (kk > 0) paper(c, x + Math.cos(a) * sp * eo(kk), y - 6 + Math.sin(a) * sp * eo(kk) + 26 * kk * kk, 7, 9, (rnd(i + 12, s) - 0.5) * 2 + kk * 3, Math.cos(kk * 12 + i));
+        }
+        c.translate(x, y); c.scale(pop, pop);
+        A.rrect(c, -12, -8, 10, 4, 1.2, '#c99a4a', '#7a5a2a', 1);
+        A.rrect(c, -12, -6, 24, 16, 2, '#d9b56a', '#7a5a2a', 1.4);
+        const open = U.clamp((k - 0.1) / 0.15, 0, 1);
+        A.poly(c, [[-12, -6], [12, -6], [12 - 3 * open, -6 - 9 * open], [-12 + 3 * open, -6 - 9 * open]], '#e8c884', '#7a5a2a', 1.2);
+        if (k > 0.3) {
+          const kk = (k - 0.3) / 0.7, sc = kk < 0.15 ? 1.8 - 0.8 * U.easeOutBack(kk / 0.15) : 1;
+          c.save(); c.translate(1, 3); c.rotate(-0.25); c.scale(sc, sc * 0.75);
+          c.strokeStyle = '#c8323a'; c.lineWidth = 2;
+          c.beginPath(); c.arc(0, 0, 6.5, 0, U.TAU); c.stroke();
+          c.lineWidth = 1.6; c.beginPath(); c.moveTo(-4, -1.4); c.lineTo(4, -1.4); c.moveTo(-3, 1.6); c.lineTo(3, 1.6); c.stroke();
+          c.restore();
+        }
+        c.restore();
+        return true;
+      }
+      case 'joias': {
+        // Joias da Arabia erguendo: estojo de joias estourando em brilhantes
+        const y = f.y - 50;
+        c.save();
+        c.globalAlpha = 1 - k;
+        A.ell(c, f.x, y, 14 + 50 * e, (14 + 50 * e) * 0.5, null, '#ffffff', 3 * (1 - k) + 0.6);
+        for (let i = 0; i < 9; i++) {
+          const a = (i / 9) * U.TAU + rnd(i, s) * 0.4, d = 12 + 48 * e * (0.7 + 0.3 * rnd(i + 9, s));
+          gem(c, f.x + Math.cos(a) * d, y + Math.sin(a) * d * 0.5 - 10 * e, 0.9, a);
+        }
+        c.restore();
+        return true;
+      }
+      case 'enemyHeal': {
+        if (!f.pix) return false;
+        // Vaquinha do Pix: aro verde-agua, celulares e moedas subindo em volta (a cura chega pelo Pix)
+        const r = f.r || 85;
+        c.save();
+        c.globalAlpha = (1 - k) * 0.85;
+        A.ell(c, f.x, f.y, r * e, r * e * U.YS, U.rgba('#3fd8c4', 0.12), '#3fd8c4', 2.5);
+        for (let i = 0; i < 8; i++) {
+          const a = (i / 8) * U.TAU + rnd(i, s) * 0.5, d = r * (0.35 + 0.55 * rnd(i + 8, s));
+          const px = f.x + Math.cos(a) * d, py = f.y + Math.sin(a) * d * U.YS - 14 - e * 30;
+          c.globalAlpha = Math.min(1, k * 8) * (k < 0.6 ? 1 : (1 - k) / 0.4);
+          if (i % 2) A.coin(c, px, py, 3.6); else phone(c, px, py, 1.15, Math.sin(k * 10 + i) * 0.2);
+        }
+        c.restore();
+        return true;
+      }
+    }
+    return false;
+  };
+
+  // marcas presas no adversario enquanto o poder age (render.js, depois do boneco)
+  A.enemyPower = (c, e, g, t) => {
+    const P = e.T.poder;
+    if (!P || e.dead || e.reached) return;
+    if (P === 'joias' && e.jewelT > 0) {
+      // escudo de joias: bolha clara e brilhantes girando em volta do chefe
+      const D = (e.T.pw && e.T.pw.dur) || 3;
+      const a = Math.min(1, e.jewelT / 0.3, (D - e.jewelT) / 0.2 + 0.2);
+      const K = typeof charK === 'function' ? charK() : 1;
+      const y = (g.hitYV ? g.hitYV(e) : g.hitY(e)), s = e.T.size * K;
+      c.save();
+      c.globalAlpha = a * 0.9;
+      A.ell(c, e.x, y, s * 1.55, s * 1.25, 'rgba(191,240,255,0.14)', 'rgba(225,250,255,0.75)', 2);
+      for (let i = 0; i < 7; i++) {
+        const an = t * 2.2 + (i / 7) * U.TAU;
+        gem(c, e.x + Math.cos(an) * s * 1.55, y + Math.sin(an) * s * 0.55, 1 + 0.15 * Math.sin(t * 6 + i), an * 0.5);
+      }
+      c.fillStyle = '#ffffff';
+      for (let i = 0; i < 4; i++) {
+        const tw = Math.sin(t * 9 + i * 1.9);
+        if (tw > 0.2) star4(c, e.x + Math.cos(i * 1.7 + t) * s * 0.9, y + Math.sin(i * 2.3) * s * 0.8, 2 + 4 * tw);
+      }
+      c.restore();
+      if (typeof Light !== 'undefined') Light.add(e.x, y, s * 4, '#cfefff', 0.5 * a, 0.3);
+    } else if (P === 'tarifaco' && !e.burrowed) {
+      // Tarifaco: aro tracejado vermelho no chao mostrando ate onde a tarifa pega
+      const r = (e.T.pw && e.T.pw.r) || 110;
+      c.save();
+      c.setLineDash([6, 8]); c.lineDashOffset = -t * 14;
+      A.ell(c, e.x, e.y, r, r * U.YS, 'rgba(214,40,43,0.05)', 'rgba(232,80,70,0.45)', 1.6);
+      c.restore();
+    }
+  };
+
+  // Pedalada Fiscal (Dilmae) e Fuga para a Italia (Zambela): no lugar do monte de terra, o vulto dela disparando
+  // com linhas de velocidade; ela de bicicleta, ou deixando um rastro de bandeirinhas verde, branco e vermelho
+  A.burrowDash = (c, e, t) => {
+    const P = e.T.poder;
+    if ((P !== 'pedalada' && P !== 'fuga') || typeof ESPR === 'undefined' || !ESPR.ready(e.type)) return false;
+    const K = typeof charK === 'function' ? charK() : 1;
+    const hx = e.hdx || e.facing || 1, hy = e.hdy || 0, nx = -hy, ny = hx;
+    const sd = e.id * 1.37;
+    c.save();
+    c.translate(e.x, e.y);
+    A.shadow(c, 0, 0, 11 * K, 4 * K, 0.18);
+    if (P === 'fuga') {
+      // bandeirinhas ficando para tras pela estrada
+      const tmp = {};
+      for (let i = 1; i <= 4; i++) {
+        const q = e.path.at(Math.max(0, e.d - i * 15), tmp);
+        const ln = typeof LANE !== 'undefined' ? e.lane * LANE : 0;
+        const fx = q.x - q.dy * ln - e.x, fy = q.y + q.dx * ln - e.y;
+        c.globalAlpha = 0.95 * (1 - i / 5.5);
+        A.line(c, fx, fy, fx, fy - 17, '#5a4a3a', 1.4);
+        const w = Math.sin(t * 10 + i * 1.3) * 1.4;
+        A.rect(c, fx, fy - 17 + w * 0.3, 4, 8, '#1f9a4c', 'rgba(40,30,20,0.5)', 0.6);
+        A.rect(c, fx + 4, fy - 17 + w * 0.6, 4, 8, '#f6f4ec', 'rgba(40,30,20,0.5)', 0.6);
+        A.rect(c, fx + 8, fy - 17 + w, 4, 8, '#d6282b', 'rgba(40,30,20,0.5)', 0.6);
+      }
+      c.globalAlpha = 1;
+    }
+    // linhas de velocidade atras do vulto
+    c.lineCap = 'round';
+    for (let i = 0; i < 6; i++) {
+      const ph = (t * 2.6 + rnd(i, sd)) % 1, off = (i - 2.5) * 5.5 * K, hgt = (10 + 7 * (i % 3) + rnd(i + 6, sd) * 8) * K;
+      const b0 = (10 + ph * 22) * K, b1 = b0 + (12 + 10 * rnd(i + 12, sd)) * K;
+      c.globalAlpha = 0.75 * (1 - ph);
+      A.line(c, -hx * b0 + nx * off * 0.4, -hy * b0 * 0.6 + ny * off * 0.25 - hgt, -hx * b1 + nx * off * 0.4, -hy * b1 * 0.6 + ny * off * 0.25 - hgt, '#ffffff', 2);
+    }
+    // vulto (fica intocavel): duas copias apagadas atras e uma mais forte
+    for (let j = 2; j >= 0; j--) {
+      c.save();
+      c.translate(-hx * j * 9 * K, -hy * j * 6 * K);
+      c.globalAlpha = j ? 0.16 : 0.62;
+      A.enemySprite(c, e, t, true);
+      c.restore();
+    }
+    if (P === 'pedalada') {
+      // bicicleta vermelha nos pes, com as rodas girando
+      const fl = hx >= 0 ? 1 : -1, wr = 6.5 * K, sp = t * 18;
+      c.save();
+      c.scale(fl, 1);
+      c.globalAlpha = 0.95;
+      for (const wx of [-9 * K, 9 * K]) {
+        A.circ(c, wx, -wr, wr, null, '#2b2d36', 2);
+        c.strokeStyle = 'rgba(80,84,96,0.8)'; c.lineWidth = 0.9;
+        c.beginPath();
+        for (let i = 0; i < 3; i++) { const a = sp + i * Math.PI / 3; c.moveTo(wx + Math.cos(a) * wr, -wr + Math.sin(a) * wr); c.lineTo(wx - Math.cos(a) * wr, -wr - Math.sin(a) * wr); }
+        c.stroke();
+      }
+      c.lineCap = 'round'; c.lineJoin = 'round';
+      c.strokeStyle = '#d6282b'; c.lineWidth = 2.2;
+      c.beginPath();
+      c.moveTo(-9 * K, -wr); c.lineTo(-1 * K, -wr); c.lineTo(5 * K, -wr - 8 * K); c.lineTo(-4 * K, -wr - 8 * K); c.lineTo(-1 * K, -wr);
+      c.moveTo(5 * K, -wr - 8 * K); c.lineTo(9 * K, -wr); c.moveTo(5 * K, -wr - 8 * K); c.lineTo(6 * K, -wr - 12 * K);
+      c.stroke();
+      A.line(c, 4 * K, -wr - 12 * K, 8 * K, -wr - 12.5 * K, '#2b2d36', 2);
+      A.ell(c, -4 * K, -wr - 9 * K, 3 * K, 1.2 * K, '#2b2d36');
+      c.restore();
+    }
+    // poeirinha nos pes
+    c.globalAlpha = 0.5;
+    for (let i = 0; i < 3; i++) {
+      const ph = (t * 3 + i / 3) % 1;
+      A.circ(c, -hx * (8 + ph * 20) * K, -hy * (8 + ph * 20) * 0.6 * K - 2, (2 + ph * 4) * K, `rgba(225,210,180,${0.6 * (1 - ph)})`);
+    }
+    c.restore();
+    return true;
+  };
+
+  // Tarifaco: etiqueta vermelha de % subindo acima da torre enquanto o Dudu esta perto
+  A.tarifMark = (c, tw, t, g) => {
+    const top = g && g.towerTop ? g.towerTop(tw) : 70;
+    const age = g ? g.time - (tw.tarifStart || 0) : 1;
+    const a = Math.min(1, tw.tarifT / 0.25, age * 5);
+    c.save();
+    for (let i = 0; i < 2; i++) {
+      const ph = (t * 0.8 + i * 0.5 + tw.id * 0.13) % 1;
+      const x = tw.x + 14 + i * 6 + Math.sin(ph * 6 + i) * 3, y = tw.y - top - 10 - ph * 26;
+      c.globalAlpha = a * Math.min(1, (1 - ph) * 3, ph * 8);
+      A.rrect(c, x - 6, y - 6, 12, 12, 3, '#d6282b', '#ffffff', 1.2);
+      pctSign(c, x, y, 1, '#ffffff');
     }
     c.restore();
   };

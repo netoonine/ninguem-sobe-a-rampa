@@ -65,6 +65,13 @@ const ESPR = {
   },
 };
 
+// tamanho dos bonecos na fase: as caricaturas sao a piada, entao inimigos, herois e tropas aparecem 30% maiores que o
+// render (so dentro da fase; vitrine do inicio, retratos e icones ficam como estao). So o desenho: alcances, raios,
+// velocidades e alturas de acerto do jogo nao mudam. charLift: quanto o ponto de acerto visual sobe com o boneco maior
+const CHAR_SCALE = 1.3;
+const charK = () => (typeof App !== 'undefined' && App.screen === 'level' ? CHAR_SCALE : 1);
+const charLift = o => (charK() - 1) * (o && o.T ? o.T.size * 0.75 : 14);
+
 // vista do andar pela direcao do passo na tela (hx, hy). As folhas novas tem 5 direcoes no chao (r leste, q nordeste,
 // u norte, e sudeste, d sul; o oeste e o espelho). A camera ve o chao a 35 graus, entao o passo na tela vira angulo no
 // chao dividindo o dy por sen 35. Folga de 8 graus nas fronteiras para a vista nao piscar numa curva. o._vw guarda a atual.
@@ -114,6 +121,8 @@ A.drawHerd = (c, h, t) => {
   c.translate(h.x, h.y);
   c.globalAlpha = Math.max(0, Math.min(1, h.run / 24, (dist - h.run) / 50));
   if (h.T.flying) c.translate(0, -FLY_H * 0.8);
+  const K = charK();
+  if (K !== 1) c.scale(K, K);
   ESPR.draw(c, seq[Math.floor(h.run / 7) % seq.length], h.facing < 0);
   A.whiteFlag(c, h.facing < 0 ? 4 : -4, -Math.max(...seq.map(f => f[6] / ESPR.den(f))) + 4, h.run / 40, h.facing < 0 ? -1 : 1);
   c.restore();
@@ -136,6 +145,8 @@ A.beastSprite = (c, u) => {
     f = seq[Math.floor((ph < 0 ? ph + 1 : ph) * seq.length) % seq.length];
   }
   // a folha ja vem espelhada pelo A.drawUnit (facing): desenha sem flip
+  const K = charK();
+  if (K !== 1) c.scale(K, K);
   c.globalAlpha = u.life > 0 && u.life < 1 ? u.life : 1;
   ESPR.draw(c, f, false);
   if (u.hurtT > 0) { c.globalCompositeOperation = 'lighter'; c.globalAlpha = 0.4; ESPR.draw(c, f, false); }
@@ -143,7 +154,7 @@ A.beastSprite = (c, u) => {
 };
 A.beastTop = u => {
   const S = INIMIGOS_META.sets[ESPR.key(u.beast)];
-  return S && S.l && ESPR.ready(u.beast) ? Math.max(...S.l.map(f => f[6] / ESPR.den(f))) : null;
+  return S && S.l && ESPR.ready(u.beast) ? Math.max(...S.l.map(f => f[6] / ESPR.den(f))) * charK() : null;
 };
 
 // icone de bicho libertado (botao do Estouro da Mata): primeiro quadro andando, cabendo no circulo de raio r
@@ -194,6 +205,7 @@ A.enemyTop = e => {
     t = Math.max(...(S[v] || []).map(f => f[6] / ESPR.den(f))) * (ESPR_SCALE[e.type] || 1);
     ESPR.tops[e.type + v] = t;
   }
+  t *= charK();   // o boneco cresce a partir dos pes; a altura do voo fica igual
   const fl = ESPR_FLY[e.type];
   if (fl) t += e.type === 'ifrit' && !e.flying ? 10 : FLY_H + fl[0];
   return t;
@@ -214,8 +226,8 @@ A.enemySprite = (c, e, t, hidden) => {
     const bob = Math.sin(t * fl[1] + e.id) * fl[2];
     c.translate(0, e.type === 'ifrit' && !e.flying ? -10 + bob : -FLY_H - fl[0] + bob);
   }
-  const k = ESPR_SCALE[e.type];
-  if (k) c.scale(k, k);
+  const k = (ESPR_SCALE[e.type] || 1) * charK();
+  if (k !== 1) c.scale(k, k);
   ESPR.draw(c, f, flip);
   // brasas da possessao respirando como carvao vivo (cada bicho no seu ritmo)
   if (gf && !hidden) {
@@ -298,7 +310,7 @@ A.enemyCorpse = (c, f, k) => {
   const e = f.e;
   if (!ESPR.ready(e.type)) return false;
   const S = INIMIGOS_META.sets[ESPR.key(e.type)];
-  if (S.l) return A.enemyFreed(c, f, k, S, ESPR_SCALE[e.type]);
+  if (S.l) return A.enemyFreed(c, f, k, S, (ESPR_SCALE[e.type] || 1) * charK());
   if (!S.x) return false;
   // candidato derrotado: a papelada da campanha voa e cai uma chuva de confete de festa da vitoria
   if (DATA.ENEMIES[e.type].final && !f._fin && typeof Vfx !== 'undefined') {
@@ -312,8 +324,8 @@ A.enemyCorpse = (c, f, k) => {
   c.translate(e.x, e.y);
   c.globalAlpha = k < 0.6 ? 1 : Math.max(0, (1 - k) / 0.4);
   if (e.flying) c.translate(0, -FLY_H * (1 - Math.min(1, k * 1.6)));
-  const sk = ESPR_SCALE[e.type];
-  if (sk) c.scale(sk, sk);
+  const sk = (ESPR_SCALE[e.type] || 1) * charK();
+  if (sk !== 1) c.scale(sk, sk);
   ESPR.draw(c, fr, e.facing < 0);
   c.restore();
   return true;

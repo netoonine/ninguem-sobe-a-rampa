@@ -16,24 +16,27 @@ jeito.
   ligado, o jogo fica em `https://netoonine.github.io/ninguem-sobe-a-rampa/`.
 - **No jogo:** escolha a chapa, construa torres nos lotes de concreto, evolua e especialize cada uma, use as operações
   e o herói. Ninguém pode chegar ao topo da rampa.
+- **Zoom:** roda do mouse ou pinça (até 2x), arrastar para mover, duplo clique para voltar.
 
 ![Escolha a sua chapa](docs/chapa.jpg)
 
 ## As duas chapas
 
-Cada chapa tem os próprios heróis, as próprias torres e a própria turma adversária.
+Cada chapa tem os próprios heróis e as próprias torres, todas símbolos simpáticos do seu lado. Os escândalos ficam
+com a turma adversária: cada adversário sobe a rampa usando o poder do seu caso (Petrolão, Mensalão, Pedalada Fiscal,
+Rachadinha, Joias da Arábia, Tarifaço, Orçamento Secreto, Banco Vorcash...).
 
 | Função | Chapa Vermelha | Chapa Verde-Amarela |
 |---|---|---|
 | Heróis | Lulalá e Janjinha | Zero-Um e Capitão Mito |
-| Tiro rápido | Mensalinho | Laranjal |
-| Dano em área | Churrascão da Picanha | Joias da Arábia |
-| Bombardeio | Petrolão | Leite Condensado |
-| Tropas | Sindicato | Rachadinha |
-| Água | Pedalinho do Sítio | Lava a Jato |
-| Empurrão | Carro de Som do Comício | Central do Zap |
+| Tiro rápido | Carta ao Povo Brasileiro | Pomar do Agro |
+| Dano em área | Churrascão da Picanha | Tesouro Verde-Amarelo |
+| Bombardeio | Pré-Sal | Pão com Leite Condensado |
+| Tropas | Sindicato | Gabinete Patriota |
+| Água | Domingo no Sítio | Lava a Jato |
+| Empurrão | Carro de Som do Comício | Grupo do Zap da Família |
 | Reforço | CPI | Live do Cercadinho |
-| Verba | Taxa das Blusinhas | Banco Vorcash |
+| Verba | Indústria Nacional | Central do Pix |
 
 Além disso, 5 fases em Brasília (Eixo Monumental, Esplanada, Congresso, Praça dos Três Poderes e a Rampa do
 Planalto), dezenas de adversários e chefes, operações (Operação da PF, Bancada de Apoio, Delação Premiada), melhorias,

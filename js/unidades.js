@@ -80,7 +80,8 @@ A.unitSprite = (c, u) => {
   if (!USPR.ready(USPR.key(u))) return false;
   const f = A.unitFrame(u);
   if (!f) return false;
-  const k = u.kind === 'soldier' ? USPR_TIER[Math.min(3, u.tier || 1) - 1] : 1;
+  // na fase os bonecos saem maiores (CHAR_SCALE, js/inimigos.js)
+  const k = (u.kind === 'soldier' ? USPR_TIER[Math.min(3, u.tier || 1) - 1] : 1) * charK();
   c.save();
   if (k !== 1) c.scale(k, k);
   USPR.draw(c, f);
@@ -104,7 +105,7 @@ A.unitTop = u => {
     t = Math.max(...UNIDADES_META.sets[k].r.map(f => f[6] / USPR.den(f)));
     USPR.tops[k] = t;
   }
-  return t * (u.kind === 'soldier' ? USPR_TIER[Math.min(3, u.tier || 1) - 1] : 1);
+  return t * (u.kind === 'soldier' ? USPR_TIER[Math.min(3, u.tier || 1) - 1] : 1) * charK();
 };
 
 // ---------------------------------------------------------------- vitrine (tela de herois e inicio)
